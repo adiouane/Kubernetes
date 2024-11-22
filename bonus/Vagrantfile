@@ -1,0 +1,20 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "boxomatic/alpine-3.20"
+  
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 4096  # GitLab needs more RAM
+    v.cpus = 2
+  end
+
+  config.vm.define "gitlab" do |gitlab|
+    gitlab.vm.hostname = "gitlab"
+    gitlab.vm.network "private_network", ip: "192.168.56.110"
+    gitlab.vm.synced_folder ".", "/vagrant"
+    gitlab.vm.provision "shell", path: "scripts/setup.sh"
+  end
+end
+
+# > Why these settings?
+# > - GitLab requires more resources than our previous setups
+# > - We're using the same IP as before but with more RAM and CPUs
+# > - We'll use a setup script to install everything needed

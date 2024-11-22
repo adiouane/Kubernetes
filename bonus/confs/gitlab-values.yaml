@@ -1,0 +1,26 @@
+global:
+  edition: ce
+  hosts:
+    domain: gitlab.local
+    https: false
+  ingress:
+    configureCertmanager: false
+    class: traefik
+  initialRootPassword:
+    secret: gitlab-root-password
+    key: password
+
+certmanager:
+  install: false
+
+nginx-ingress:
+  enabled: false
+
+gitlab-runner:
+  install: true
+
+# > Why this configuration?
+# > - We use Community Edition (CE) to keep it lightweight
+# > - Disable HTTPS for local development
+# > - Use Traefik as ingress controller
+# > - Enable GitLab Runner for CI/CD
