@@ -2,13 +2,22 @@ global:
   edition: ce
   hosts:
     domain: gitlab.local
-    https: false
-  ingress:
-    configureCertmanager: false
-    class: traefik
+    externalIP: 192.168.56.110
   initialRootPassword:
     secret: gitlab-root-password
     key: password
+  shell:
+    ssh:
+      proxyProtocol: true
+  time_zone: UTC
+  grafana:
+    enabled: false
+  ingress:
+    enabled: true
+    configureCertmanager: false
+    class: nginx
+    tls:
+      enabled: false
 
 certmanager:
   install: false
@@ -18,9 +27,97 @@ nginx-ingress:
 
 gitlab-runner:
   install: true
+  runners:
+    privileged: true
+    config: |
+      [[runners]]
+        [runners.kubernetes]
+        image = "ubuntu:20.04"
+        privileged = true
 
-# > Why this configuration?
-# > - We use Community Edition (CE) to keep it lightweight
-# > - Disable HTTPS for local development
-# > - Use Traefik as ingress controller
-# > - Enable GitLab Runner for CI/CD
+postgresql:
+  persistence:
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+redis:
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+minio:
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    ingress:
+      enabled: true
+      tls:
+        enabled: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  gitaly:
+    persistence:
+      size: 10Gi
+
+  task-runner:
+    backups:
+      objectStorage:
+        backend: s3
+
+# GitLab configuration for local installation
+gitlab_url: 'http://gitlab.local:8080'
+gitlab_root_password: 'gitlabadmin123'
+
+# K8s integration
+kubernetes:
+  enabled: true
+  namespace: gitlab
+  serviceAccount: gitlab-admin
+
+# Runner configuration
+runner:
+  registration_token: ''
+  concurrent: 4
+  check_interval: 3
+
+# Storage paths
+git_data_dirs:
+  default:
+    path: /var/opt/gitlab/git-data
+
+# Web server settings
+nginx:
+  enable: true
+  listen_port: 8080
+
+# Database settings
+postgresql:
+  enable: true
+  shared_buffers: "256MB"
+  
+# Redis settings
+redis:
+  enable: true

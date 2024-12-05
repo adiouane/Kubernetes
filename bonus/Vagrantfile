@@ -1,20 +1,67 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "boxomatic/alpine-3.20"
+  config.vm.box = "debian/bullseye64"
   
-  config.vm.provider "virtualbox" do |v|
-    v.memory = 4096  # GitLab needs more RAM
-    v.cpus = 2
+  # Increase timeout for Windows
+  config.vm.boot_timeout = 600
+  config.vm.graceful_halt_timeout = 600
+  
+  # Configure SSH timeout
+  config.ssh.insert_key = true
+  config.ssh.forward_agent = true
+  config.ssh.keep_alive = true
+  config.ssh.forward_x11 = false
+  
+  # Prevent Windows-specific issues with line endings
+  config.vm.provision "shell", inline: <<-SHELL
+    sed -i 's/\r$//' /vagrant/scripts/*.sh
+    chmod +x /vagrant/scripts/*.sh
+  SHELL
+
+  config.vm.provider "virtualbox" do |virtualbox|
+    virtualbox.memory = 12288
+    virtualbox.cpus = 4
+    # Use a unique name with timestamp
+    virtualbox.name = "gitlab-bonus-#{Time.now.to_i}"
+    
+    # Performance optimizations
+    virtualbox.customize ["modifyvm", :id, "--ioapic", "on"]
+    virtualbox.customize ["modifyvm", :id, "--memory", "12288"]
+    virtualbox.customize ["modifyvm", :id, "--cpus", "4"]
+    
+    # Network optimizations
+    virtualbox.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    virtualbox.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    
+    # Disable audio to prevent issues
+    virtualbox.customize ["modifyvm", :id, "--audio", "none"]
+    
+    # Disable USB
+    virtualbox.customize ["modifyvm", :id, "--usb", "off"]
+    virtualbox.customize ["modifyvm", :id, "--usbehci", "off"]
   end
 
-  config.vm.define "gitlab" do |gitlab|
-    gitlab.vm.hostname = "gitlab"
-    gitlab.vm.network "private_network", ip: "192.168.56.110"
-    gitlab.vm.synced_folder ".", "/vagrant"
-    gitlab.vm.provision "shell", path: "scripts/setup.sh"
+  config.vm.define "mel-hadaS" do |server|
+    server.vm.hostname = "mel-hadaS"
+    server.vm.network "private_network", ip: "192.168.56.110"
+    
+    # Use VirtualBox shared folders for Windows compatibility
+    server.vm.synced_folder ".", "/vagrant", 
+      type: "virtualbox",
+      mount_options: ["dmode=777,fmode=777"]
+    
+    # Initial setup for Debian
+    server.vm.provision "shell", inline: <<-SHELL
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y \
+        apt-transport-https \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release
+    SHELL
+    
+    # Main setup script
+    server.vm.provision "shell", privileged: true, path: "scripts/setup.sh"
   end
-end
-
-# > Why these settings?
-# > - GitLab requires more resources than our previous setups
-# > - We're using the same IP as before but with more RAM and CPUs
-# > - We'll use a setup script to install everything needed
+end 
