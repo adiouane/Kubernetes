@@ -1,123 +1,49 @@
 global:
-  edition: ce
   hosts:
     domain: gitlab.local
-    externalIP: 192.168.56.110
-  initialRootPassword:
-    secret: gitlab-root-password
-    key: password
-  shell:
-    ssh:
-      proxyProtocol: true
-  time_zone: UTC
-  grafana:
-    enabled: false
-  ingress:
+    https: false
+    externalIP: 192.168.56.110    # VM's IP address
+  initialRootPassword: "gitlabadmin"
+  # Enable Kubernetes integration
+  kubernetes:
     enabled: true
-    configureCertmanager: false
-    class: nginx
-    tls:
-      enabled: false
+    inCluster: true    # GitLab runs inside the cluster
 
 certmanager:
-  install: false
+  install: false    # Skip cert-manager installation
 
 nginx-ingress:
-  enabled: false
+  enabled: false    # Using existing ingress controller
 
 gitlab-runner:
-  install: true
+  install: true     # Install GitLab CI runner
   runners:
-    privileged: true
     config: |
       [[runners]]
         [runners.kubernetes]
-        image = "ubuntu:20.04"
-        privileged = true
+        image = "ubuntu:20.04"    # Base image for CI jobs
 
+# Configure storage for GitLab components
 postgresql:
   persistence:
-    size: 8Gi
-  resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
+    size: 8Gi    # Database storage
 
 redis:
   persistence:
-    size: 5Gi
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
+    size: 5Gi    # Cache storage
 
 minio:
   persistence:
-    size: 10Gi
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
+    size: 10Gi   # Object storage
 
+# Configure GitLab component scaling
 gitlab:
   webservice:
     minReplicas: 1
     maxReplicas: 1
-    ingress:
-      enabled: true
-      tls:
-        enabled: false
-    resources:
-      requests:
-        cpu: 200m
-        memory: 512Mi
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-  gitaly:
-    persistence:
-      size: 10Gi
-
-  task-runner:
-    backups:
-      objectStorage:
-        backend: s3
-
-# GitLab configuration for local installation
-gitlab_url: 'http://gitlab.local:8080'
-gitlab_root_password: 'gitlabadmin123'
-
-# K8s integration
-kubernetes:
-  enabled: true
-  namespace: gitlab
-  serviceAccount: gitlab-admin
-
-# Runner configuration
-runner:
-  registration_token: ''
-  concurrent: 4
-  check_interval: 3
-
-# Storage paths
-git_data_dirs:
-  default:
-    path: /var/opt/gitlab/git-data
-
-# Web server settings
-nginx:
-  enable: true
-  listen_port: 8080
-
-# Database settings
-postgresql:
-  enable: true
-  shared_buffers: "256MB"
-  
-# Redis settings
-redis:
-  enable: true
+  gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1

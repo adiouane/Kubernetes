@@ -1,101 +1,115 @@
 #!/bin/bash
 
-# Install required tools
-echo "Installing required tools..."
+# Update package list and install required dependencies
+apt-get update
+apt-get install -y curl wget git
 
-# Add GitLab repository for Debian
-curl -s https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+# Install Docker using official installation script
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+# Add vagrant user to docker group to run docker without sudo
+usermod -aG docker vagrant
 
-# Install GitLab Community Edition
-sudo EXTERNAL_URL="http://gitlab.local:8080" apt-get install -y gitlab-ce
-
-# Copy GitLab configuration
-sudo cp /vagrant/confs/gitlab.rb /etc/gitlab/gitlab.rb
-
-# Configure GitLab
-sudo gitlab-ctl reconfigure
-
-# Wait for GitLab services to be healthy
-echo "Waiting for GitLab services to be ready..."
-timeout 300 bash -c 'until sudo gitlab-ctl status > /dev/null 2>&1; do sleep 2; done'
-
-# Check individual services
-echo "Checking GitLab services..."
-sudo gitlab-ctl status
-
-# Install Docker for Debian
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-
-# Add current user to docker group
-sudo usermod -aG docker vagrant
-
-# Install kubectl
+# Download and install kubectl - the Kubernetes command-line tool
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+chmod +x kubectl
+mv kubectl /usr/local/bin/
 
-# Install k3d
-curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+# Install Helm - the Kubernetes package manager
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Create k3d cluster
-k3d cluster create iot-gitlab \
-    --servers 1 \
-    --agents 2 \
-    --port 8081:80@loadbalancer \
-    --port 8443:443@loadbalancer \
-    --port 8888:8888@loadbalancer
+# Install k3d - tool to run k3s in Docker
+wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
-# Create namespaces
-kubectl create namespace gitlab
-kubectl create namespace argocd
-kubectl create namespace dev
+# Create k3d cluster with necessary port forwarding
+# 8443: HTTPS
+# 8080: HTTP
+# 8888: Application port
+k3d cluster create gitlab-cluster \
+  --port "8443:443@loadbalancer" \
+  --port "8080:80@loadbalancer" \
+  --port "8888:8888@loadbalancer" \
+  --agents 2
 
-# Install Argo CD
+# Create required Kubernetes namespaces
+kubectl create namespace gitlab    # For GitLab components
+kubectl create namespace argocd    # For Argo CD components
+kubectl create namespace dev       # For application deployment
+
+# Install Argo CD in the argocd namespace
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# Configure GitLab integration with K8s
-kubectl create serviceaccount gitlab-admin -n gitlab
-kubectl create clusterrolebinding gitlab-admin-binding \
-    --clusterrole=cluster-admin \
-    --serviceaccount=gitlab:gitlab-admin
-
-# Get the token for GitLab K8s integration
-GITLAB_KUBE_TOKEN=$(kubectl -n gitlab get secret \
-    $(kubectl -n gitlab get secret | grep gitlab-admin | awk '{print $1}') \
-    -o jsonpath='{.data.token}' | base64 --decode)
-
-# Configure GitLab with K8s token
-sudo gitlab-rails runner "
-token = ENV['GITLAB_KUBE_TOKEN']
-Gitlab::CurrentSettings.current_application_settings.update!(
-  kubernetes_api_url: 'https://kubernetes.default.svc',
-  kubernetes_token: token,
-  kubernetes_namespace: 'gitlab'
-)
-"
-
-# Wait for Argo CD to be ready
-kubectl wait --namespace argocd \
-  --for=condition=ready pod \
-  --selector=app.kubernetes.io/name=argocd-server \
-  --timeout=300s
-
-# Configure Argo CD service
+# Configure Argo CD server as LoadBalancer for external access
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
-# Add local GitLab domain to hosts file
-echo "192.168.56.110 gitlab.local" | sudo tee -a /etc/hosts
+# Add GitLab Helm repository and update repositories
+helm repo add gitlab https://charts.gitlab.io/
+helm repo update
 
-echo "Setup complete! Access points:"
-echo "GitLab: http://gitlab.local:8081"
-echo "Argo CD: http://192.168.56.110:8081/argocd"
+# Create GitLab Helm values file with configuration
+cat > /vagrant/confs/gitlab-values.yaml << 'EOF'
+global:
+  hosts:
+    domain: gitlab.local
+    https: false
+    externalIP: 192.168.56.110
+  initialRootPassword: "gitlabadmin"
+  kubernetes:
+    enabled: true
+    inCluster: true
 
-# Print initial root password for GitLab
-echo -e "\nGitLab root password:"
-sudo cat /etc/gitlab/initial_root_password
+certmanager:
+  install: false
 
-# Print Argo CD admin password
-echo -e "\nArgo CD admin password:"
-kubectl -n argocd get secret argocd-initial-admin-secret -ojsonpath="{.data.password}" | base64 --decode; echo
+nginx-ingress:
+  enabled: false
+
+gitlab-runner:
+  install: true
+  runners:
+    config: |
+      [[runners]]
+        [runners.kubernetes]
+        image = "ubuntu:20.04"
+
+postgresql:
+  persistence:
+    size: 8Gi
+
+redis:
+  persistence:
+    size: 5Gi
+
+minio:
+  persistence:
+    size: 10Gi
+
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+  gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1
+EOF
+
+# Install GitLab using Helm
+helm upgrade --install gitlab gitlab/gitlab \
+  --timeout 600s \
+  --namespace gitlab \
+  -f /vagrant/confs/gitlab-values.yaml
+
+# Wait for GitLab pods to be ready
+echo "Waiting for GitLab pods to be ready..."
+kubectl wait --for=condition=ready pod -l release=gitlab -n gitlab --timeout=600s
+
+# Display access information
+echo "GitLab is being installed. This may take several minutes."
+echo "Once ready, access GitLab at: http://192.168.56.110:8080"
+echo "Default root password is: gitlabadmin"
+
+# Make the configuration script executable and run it
+chmod +x /vagrant/scripts/apply-confs.sh
+/vagrant/scripts/apply-confs.sh 
