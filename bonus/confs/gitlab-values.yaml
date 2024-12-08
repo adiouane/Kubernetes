@@ -7,16 +7,17 @@ global:
   kubernetes:
     enabled: true
     inCluster: true
-  # Add email for certificates
   email: admin@gitlab.local
-  certmanager:
-    enabled: false  # Disable built-in cert-manager
-    installCRDs: false
+  certmanager-issuer:
+    email: admin@gitlab.local
 
 # Disable cert-manager completely
 certmanager:
   install: false
   installCRDs: false
+
+certmanager-issuer:
+  email: admin@gitlab.local
 
 # Disable NGINX ingress as we're using Traefik
 nginx-ingress:

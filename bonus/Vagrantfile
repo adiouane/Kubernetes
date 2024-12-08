@@ -57,6 +57,9 @@ Vagrant.configure("2") do |config|
       echo "* hard nofile 65535" >> /etc/security/limits.conf
       echo "vm.max_map_count=262144" >> /etc/sysctl.conf
       sysctl -p
+
+      # Fix script permissions
+      chmod +x /vagrant/scripts/*.sh
     SHELL
 
     # Run the main setup script
