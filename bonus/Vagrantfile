@@ -42,15 +42,20 @@ Vagrant.configure("2") do |config|
     end
 
     # Configure synced folder with proper permissions
-    config.vm.synced_folder ".", "/vagrant", 
+    gitlab.vm.synced_folder ".", "/vagrant", 
       owner: "vagrant",
       group: "vagrant",
-      mount_options: ["dmode=775,fmode=664"]
+      mount_options: ["dmode=777,fmode=777"]
 
     # Initial setup to fix permissions
     gitlab.vm.provision "shell", inline: <<-SHELL
-      # Fix permissions for private key
-      chmod 0600 /vagrant/.vagrant/machines/gitlab/virtualbox/private_key
+      # Create a temporary directory for SSH keys
+      mkdir -p /home/vagrant/.ssh_temp
+      chmod 700 /home/vagrant/.ssh_temp
+      
+      # Copy and fix permissions for private key
+      cp /vagrant/.vagrant/machines/gitlab/virtualbox/private_key /home/vagrant/.ssh_temp/
+      chmod 600 /home/vagrant/.ssh_temp/private_key
       
       # Increase system limits
       echo "* soft nofile 65535" >> /etc/security/limits.conf
