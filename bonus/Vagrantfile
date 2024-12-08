@@ -5,9 +5,17 @@ Vagrant.configure("2") do |config|
   # Use Ubuntu 22.04 (Jammy) as base image
   config.vm.box = "ubuntu/jammy64"
   
+  # Increase boot timeout
+  config.vm.boot_timeout = 600
+  
+  # Configure SSH settings
+  config.ssh.insert_key = true
+  config.ssh.forward_agent = true
+  
   config.vm.define "gitlab" do |gitlab|
     # Set hostname for the VM
     gitlab.vm.hostname = "gitlab"
+    
     # Configure private network with static IP
     gitlab.vm.network "private_network", ip: "192.168.56.110"
     
@@ -17,9 +25,20 @@ Vagrant.configure("2") do |config|
       vb.memory = 8192  # Allocate 8GB RAM
       vb.cpus = 4       # Allocate 4 CPU cores
       
+      # Performance optimizations
+      vb.customize ["modifyvm", :id, "--ioapic", "on"]
+      vb.customize ["modifyvm", :id, "--memory", "8192"]
+      vb.customize ["modifyvm", :id, "--cpus", "4"]
+      
       # Disable USB
       vb.customize ["modifyvm", :id, "--usb", "off"]
       vb.customize ["modifyvm", :id, "--usbehci", "off"]
+      
+      # Enable nested virtualization
+      vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+      
+      # Disable audio
+      vb.customize ["modifyvm", :id, "--audio", "none"]
     end
 
     # Configure synced folder with proper permissions
@@ -28,10 +47,16 @@ Vagrant.configure("2") do |config|
       group: "vagrant",
       mount_options: ["dmode=775,fmode=664"]
 
-    # Run the setup script after VM creation
+    # Initial setup to fix permissions
     gitlab.vm.provision "shell", inline: <<-SHELL
       # Fix permissions for private key
       chmod 0600 /vagrant/.vagrant/machines/gitlab/virtualbox/private_key
+      
+      # Increase system limits
+      echo "* soft nofile 65535" >> /etc/security/limits.conf
+      echo "* hard nofile 65535" >> /etc/security/limits.conf
+      echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+      sysctl -p
     SHELL
 
     # Run the main setup script
