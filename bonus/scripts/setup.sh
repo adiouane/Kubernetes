@@ -71,13 +71,23 @@ global:
     domain: gitlab.local
     https: false
     externalIP: 192.168.56.110
-  initialRootPassword: "gitlabadmin"
+  initialRootPassword:
+    secret: gitlab-root-password
+    password: "gitlabadmin"
   kubernetes:
     enabled: true
     inCluster: true
+  email:
+    from: "gitlab@gitlab.local"
+    display_name: "GitLab"
+    reply_to: "noreply@gitlab.local"
 
 certmanager:
   install: false
+  installCRDs: false
+
+certmanager-issuer:
+  email: "gitlab@gitlab.local"
 
 nginx-ingress:
   enabled: false
@@ -90,6 +100,7 @@ gitlab-runner:
         [runners.kubernetes]
         image = "ubuntu:20.04"
 
+# Storage configurations
 postgresql:
   persistence:
     size: 8Gi
@@ -102,17 +113,39 @@ minio:
   persistence:
     size: 10Gi
 
+# Component scaling
 gitlab:
   webservice:
     minReplicas: 1
     maxReplicas: 1
+    ingress:
+      enabled: true
+      tls:
+        enabled: false
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
   gitlab-shell:
     minReplicas: 1
     maxReplicas: 1
+    service:
+      type: ClusterIP
+      externalTrafficPolicy: Cluster
+
+registry:
+  enabled: true
+  tls:
+    enabled: false
+
+shared-secrets:
+  enabled: true
+  env: production
 EOF
+
+# Create root password secret before installing GitLab
+kubectl create secret generic gitlab-root-password \
+  --from-literal=password=gitlabadmin \
+  -n gitlab
 
 # Install GitLab using Helm with retry
 retry helm upgrade --install gitlab gitlab/gitlab \
