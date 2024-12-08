@@ -2,48 +2,78 @@ global:
   hosts:
     domain: gitlab.local
     https: false
-    externalIP: 192.168.56.110    # VM's IP address
+    externalIP: 192.168.56.110
   initialRootPassword: "gitlabadmin"
-  # Enable Kubernetes integration
   kubernetes:
     enabled: true
-    inCluster: true    # GitLab runs inside the cluster
+    inCluster: true
+  # Add email for certificates
+  email: admin@gitlab.local
+  certmanager:
+    enabled: false  # Disable built-in cert-manager
+    installCRDs: false
 
+# Disable cert-manager completely
 certmanager:
-  install: false    # Skip cert-manager installation
+  install: false
+  installCRDs: false
 
+# Disable NGINX ingress as we're using Traefik
 nginx-ingress:
-  enabled: false    # Using existing ingress controller
+  enabled: false
 
 gitlab-runner:
-  install: true     # Install GitLab CI runner
+  install: true
   runners:
     config: |
       [[runners]]
         [runners.kubernetes]
-        image = "ubuntu:20.04"    # Base image for CI jobs
+        image = "ubuntu:20.04"
 
-# Configure storage for GitLab components
+# Storage configurations
 postgresql:
   persistence:
-    size: 8Gi    # Database storage
+    size: 8Gi
 
 redis:
   persistence:
-    size: 5Gi    # Cache storage
+    size: 5Gi
 
 minio:
   persistence:
-    size: 10Gi   # Object storage
+    size: 10Gi
 
-# Configure GitLab component scaling
+# Component scaling
 gitlab:
   webservice:
     minReplicas: 1
     maxReplicas: 1
+    ingress:
+      enabled: true #//!emain error
+      tls:
+        enabled: false #//!emain error
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
   gitlab-shell:
     minReplicas: 1
     maxReplicas: 1
+
+# Disable SSL/TLS for development //!emain error
+gitlab:
+  webservice:
+    ingress:
+      tls:
+        enabled: false
+  gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1
+    service:
+      type: ClusterIP
+      externalTrafficPolicy: Cluster
+
+# Registry configuration
+registry:
+  enabled: true
+  tls:
+    enabled: false
