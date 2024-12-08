@@ -41,9 +41,28 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 # Configure Argo CD server as LoadBalancer for external access
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
-# Add GitLab Helm repository and update repositories
-helm repo add gitlab https://charts.gitlab.io/
-helm repo update
+# Function to retry commands
+function retry {
+  local n=1
+  local max=5
+  local delay=15
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        echo "Command failed. Attempt $n/$max:"
+        sleep $delay;
+      else
+        echo "The command has failed after $n attempts."
+        return 1
+      fi
+    }
+  done
+}
+
+# Add GitLab Helm repository with retry
+retry helm repo add gitlab https://charts.gitlab.io/
+retry helm repo update
 
 # Create GitLab Helm values file with configuration
 cat > /vagrant/confs/gitlab-values.yaml << 'EOF'
@@ -95,8 +114,8 @@ gitlab:
     maxReplicas: 1
 EOF
 
-# Install GitLab using Helm
-helm upgrade --install gitlab gitlab/gitlab \
+# Install GitLab using Helm with retry
+retry helm upgrade --install gitlab gitlab/gitlab \
   --timeout 600s \
   --namespace gitlab \
   -f /vagrant/confs/gitlab-values.yaml
