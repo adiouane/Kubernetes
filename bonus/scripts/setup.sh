@@ -23,17 +23,19 @@ wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
 # Create our k3d cluster with port forwarding
 k3d cluster create gitlab-cluster \
-  --port "8443:443@loadbalancer" \  # For HTTPS
-  --port "8080:80@loadbalancer" \   # For HTTP
-  --port "8888:8888@loadbalancer" \ # For our application
-  --agents 2                        # We want 2 worker nodes
+    --port "8443:443@loadbalancer" \
+    --port "8080:80@loadbalancer" \
+    --port "8888:8888@loadbalancer" \
+    --agents 2
+
+# Wait for the cluster to be ready
+sleep 20
+
+# Configure kubectl to use the new cluster
+k3d kubeconfig merge gitlab-cluster --kubeconfig-switch-context
 
 # Create necessary namespaces
-kubectl create namespace gitlab    # For GitLab itself
-
-# Install Argo CD
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl create namespace gitlab
 
 # Create a retry function - useful for unreliable network operations
 function retry {
@@ -65,9 +67,7 @@ global:
     domain: gitlab.local
     https: false
     externalIP: 192.168.56.110
-  initialRootPassword:
-    secret: gitlab-root-password
-    password: "gitlabadmin"
+  initialRootPassword: "gitlabadmin"
   kubernetes:
     enabled: true
     inCluster: true
@@ -79,9 +79,6 @@ global:
 certmanager:
   install: false
   installCRDs: false
-
-certmanager-issuer:
-  email: "gitlab@gitlab.local"
 
 nginx-ingress:
   enabled: false
@@ -98,14 +95,17 @@ gitlab-runner:
 postgresql:
   persistence:
     size: 8Gi
+    storageClass: local-path
 
 redis:
   persistence:
     size: 5Gi
+    storageClass: local-path
 
 minio:
   persistence:
     size: 10Gi
+    storageClass: local-path
 
 # Component scaling
 gitlab:
@@ -130,16 +130,7 @@ registry:
   enabled: true
   tls:
     enabled: false
-
-shared-secrets:
-  enabled: true
-  env: production
 EOF
-
-# Create root password secret
-kubectl create secret generic gitlab-root-password \
-  --from-literal=password=gitlabadmin \
-  -n gitlab
 
 # Install GitLab using Helm
 retry helm upgrade --install gitlab gitlab/gitlab \
@@ -155,7 +146,3 @@ kubectl wait --for=condition=ready pod -l release=gitlab -n gitlab --timeout=600
 echo "GitLab is being installed. This may take several minutes."
 echo "Once ready, access GitLab at: http://192.168.56.110:8080"
 echo "Default root password is: gitlabadmin"
-
-# Run additional configuration
-chmod +x /vagrant/scripts/apply-confs.sh
-/vagrant/scripts/apply-confs.sh 
