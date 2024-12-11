@@ -1,47 +1,41 @@
 #!/bin/bash
 
-# Update package list and install required dependencies
+# First, update the system and install basic tools
 apt-get update
 apt-get install -y curl wget git
 
-# Install Docker using official installation script
+# Install Docker - we'll need this to run our containers
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
-# Add vagrant user to docker group to run docker without sudo
+# Add vagrant user to docker group so we don't need sudo
 usermod -aG docker vagrant
 
-# Download and install kubectl - the Kubernetes command-line tool
+# Install kubectl - this is our main tool for managing Kubernetes
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 chmod +x kubectl
 mv kubectl /usr/local/bin/
 
-# Install Helm - the Kubernetes package manager
+# Install Helm - we'll use this to install GitLab
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Install k3d - tool to run k3s in Docker
+# Install k3d - this lets us run Kubernetes in Docker
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
-# Create k3d cluster with necessary port forwarding
-# 8443: HTTPS
-# 8080: HTTP
-# 8888: Application port
+# Create our k3d cluster with port forwarding
 k3d cluster create gitlab-cluster \
-  --port "8443:443@loadbalancer" \
-  --port "8080:80@loadbalancer" \
-  --port "8888:8888@loadbalancer" \
-  --agents 2
+  --port "8443:443@loadbalancer" \  # For HTTPS
+  --port "8080:80@loadbalancer" \   # For HTTP
+  --port "8888:8888@loadbalancer" \ # For our application
+  --agents 2                        # We want 2 worker nodes
 
-# Create required Kubernetes namespaces
-kubectl create namespace gitlab    # For GitLab components
-kubectl create namespace argocd    # For Argo CD components
-kubectl create namespace dev       # For application deployment
+# Create necessary namespaces
+kubectl create namespace gitlab    # For GitLab itself
 
-# Install Argo CD in the argocd namespace
+# Install Argo CD
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-# Configure Argo CD server as LoadBalancer for external access
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
-# Function to retry commands
+# Create a retry function - useful for unreliable network operations
 function retry {
   local n=1
   local max=5
@@ -60,11 +54,11 @@ function retry {
   done
 }
 
-# Add GitLab Helm repository with retry
+# Add GitLab Helm repository
 retry helm repo add gitlab https://charts.gitlab.io/
 retry helm repo update
 
-# Create GitLab Helm values file with configuration
+# Create GitLab configuration
 cat > /vagrant/confs/gitlab-values.yaml << 'EOF'
 global:
   hosts:
@@ -142,26 +136,26 @@ shared-secrets:
   env: production
 EOF
 
-# Create root password secret before installing GitLab
+# Create root password secret
 kubectl create secret generic gitlab-root-password \
   --from-literal=password=gitlabadmin \
   -n gitlab
 
-# Install GitLab using Helm with retry
+# Install GitLab using Helm
 retry helm upgrade --install gitlab gitlab/gitlab \
   --timeout 600s \
   --namespace gitlab \
   -f /vagrant/confs/gitlab-values.yaml
 
-# Wait for GitLab pods to be ready
+# Wait for GitLab to be ready
 echo "Waiting for GitLab pods to be ready..."
 kubectl wait --for=condition=ready pod -l release=gitlab -n gitlab --timeout=600s
 
-# Display access information
+# Show access information
 echo "GitLab is being installed. This may take several minutes."
 echo "Once ready, access GitLab at: http://192.168.56.110:8080"
 echo "Default root password is: gitlabadmin"
 
-# Make the configuration script executable and run it
+# Run additional configuration
 chmod +x /vagrant/scripts/apply-confs.sh
 /vagrant/scripts/apply-confs.sh 

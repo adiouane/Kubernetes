@@ -2,72 +2,70 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  # Use Ubuntu 22.04 (Jammy) as base image
+  # Use Ubuntu 22.04 as our base OS - it's stable and well-supported
   config.vm.box = "ubuntu/jammy64"
   
-  # Increase boot timeout
+  # Sometimes VM boot can be slow, so we increase the timeout
   config.vm.boot_timeout = 600
   
-  # Configure SSH settings
+  # Configure SSH for better security and convenience
   config.ssh.insert_key = true
   config.ssh.forward_agent = true
   
   config.vm.define "gitlab" do |gitlab|
-    # Set hostname for the VM
+    # Give our VM a hostname
     gitlab.vm.hostname = "gitlab"
     
-    # Configure private network with static IP
+    # Set up a private network with a static IP - this is how we'll access GitLab
     gitlab.vm.network "private_network", ip: "192.168.56.110"
     
-    # Configure VirtualBox provider settings
+    # Configure VirtualBox settings
     gitlab.vm.provider "virtualbox" do |vb|
-      # Reduce resource allocation
-      vb.memory = 6144  # Reduced to 6GB RAM
-      vb.cpus = 2       # Reduced to 2 CPU cores
+      # GitLab needs decent resources to run smoothly
+      vb.memory = 6144  # 6GB RAM
+      vb.cpus = 2       # 2 CPU cores
       
-      # Performance optimizations
+      # Various optimizations to improve performance
       vb.customize ["modifyvm", :id, "--ioapic", "on"]
       vb.customize ["modifyvm", :id, "--memory", "6144"]
       vb.customize ["modifyvm", :id, "--cpus", "2"]
       
-      # Disable USB
+      # Disable unnecessary features to save resources
       vb.customize ["modifyvm", :id, "--usb", "off"]
       vb.customize ["modifyvm", :id, "--usbehci", "off"]
-      
-      # Enable nested virtualization
-      vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
-      
-      # Disable audio
       vb.customize ["modifyvm", :id, "--audio", "none"]
+      
+      # Enable nested virtualization - needed for running containers
+      vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
     end
 
-    # Configure synced folder with proper permissions
+    # Share files between host and VM with proper permissions
     gitlab.vm.synced_folder ".", "/vagrant", 
       owner: "vagrant",
       group: "vagrant",
       mount_options: ["dmode=777,fmode=777"]
 
-    # Initial setup to fix permissions
+    # Initial setup script to prepare the environment
     gitlab.vm.provision "shell", inline: <<-SHELL
-      # Create a temporary directory for SSH keys
+      # Set up SSH directory with proper permissions
       mkdir -p /home/vagrant/.ssh_temp
       chmod 700 /home/vagrant/.ssh_temp
       
-      # Copy and fix permissions for private key
+      # Copy and secure the SSH key
       cp /vagrant/.vagrant/machines/gitlab/virtualbox/private_key /home/vagrant/.ssh_temp/
       chmod 600 /home/vagrant/.ssh_temp/private_key
       
-      # Increase system limits
+      # Increase system limits for GitLab
       echo "* soft nofile 65535" >> /etc/security/limits.conf
       echo "* hard nofile 65535" >> /etc/security/limits.conf
       echo "vm.max_map_count=262144" >> /etc/sysctl.conf
       sysctl -p
 
-      # Fix script permissions
+      # Make sure our scripts are executable
       chmod +x /vagrant/scripts/*.sh
     SHELL
 
-    # Run the main setup script
+    # Run the main setup script that will install GitLab
     gitlab.vm.provision "shell", path: "scripts/setup.sh"
   end
 end
