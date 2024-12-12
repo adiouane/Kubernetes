@@ -3,13 +3,21 @@ global:
     domain: gitlab.local
     https: false
     externalIP: 192.168.56.110
-  initialRootPassword: "gitlabadmin"
+  initialRootPassword:
+    secret: gitlab-root-password
+    key: password
   kubernetes:
     enabled: true
     inCluster: true
-  email: admin@gitlab.local
-  certmanager-issuer:
-    email: admin@gitlab.local
+  email:
+    from: gitlab@gitlab.local
+    display_name: GitLab
+    reply_to: noreply@gitlab.local
+    smime:
+      enabled: false
+      secretName: ""
+      keyName: "tls.key"
+      certName: "tls.crt"
 
 # Disable cert-manager completely
 certmanager:
@@ -34,17 +42,17 @@ gitlab-runner:
 # Storage configurations
 postgresql:
   persistence:
-    size: 2Gi
+    size: 8Gi
     storageClass: local-path
 
 redis:
   persistence:
-    size: 2Gi
+    size: 5Gi
     storageClass: local-path
 
 minio:
   persistence:
-    size: 5Gi
+    size: 10Gi
     storageClass: local-path
 
 # Component scaling
@@ -53,9 +61,9 @@ gitlab:
     minReplicas: 1
     maxReplicas: 1
     ingress:
-      enabled: true #//!emain error
+      enabled: true
       tls:
-        enabled: false #//!emain error
+        enabled: false
     resources:
       requests:
         cpu: 200m
@@ -84,7 +92,7 @@ gitlab:
         cpu: 300m
         memory: 400Mi
 
-# Disable SSL/TLS for development //!emain error
+# Disable SSL/TLS for development
 gitlab:
   webservice:
     ingress:
@@ -102,3 +110,7 @@ registry:
   enabled: true
   tls:
     enabled: false
+
+shared-secrets:
+  enabled: true
+  env: production

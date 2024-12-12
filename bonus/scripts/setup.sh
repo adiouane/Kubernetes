@@ -132,6 +132,11 @@ registry:
     enabled: false
 EOF
 
+# Create root password secret before installing GitLab
+kubectl create secret generic gitlab-root-password \
+  --from-literal=password=gitlabadmin \
+  -n gitlab
+
 # Install GitLab using Helm
 retry helm upgrade --install gitlab gitlab/gitlab \
   --timeout 600s \
