@@ -19,6 +19,10 @@ certmanager:
   install: false
   installCRDs: false
 
+# Add certmanager-issuer configuration
+certmanager-issuer:
+  email: gitlab@gitlab.local
+
 # Disable NGINX ingress as we're using Traefik
 nginx-ingress:
   enabled: false
