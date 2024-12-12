@@ -34,3 +34,37 @@ gitlab:
       enabled: true
       tls:
         enabled: false
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 2Gi
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 800Mi
+  gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+
+# Disable storage
+postgresql:
+  persistence:
+    size: 2Gi
+redis:
+  persistence:
+    size: 2Gi
+minio:
+  persistence:
+    size: 5Gi
