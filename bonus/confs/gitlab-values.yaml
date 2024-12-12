@@ -13,104 +13,20 @@ global:
     from: gitlab@gitlab.local
     display_name: GitLab
     reply_to: noreply@gitlab.local
-    smime:
-      enabled: false
-      secretName: ""
-      keyName: "tls.key"
-      certName: "tls.crt"
 
-# Disable cert-manager completely
+# Disable cert-manager
 certmanager:
   install: false
   installCRDs: false
-
-certmanager-issuer:
-  email: admin@gitlab.local
 
 # Disable NGINX ingress as we're using Traefik
 nginx-ingress:
   enabled: false
 
-gitlab-runner:
-  install: true
-  runners:
-    config: |
-      [[runners]]
-        [runners.kubernetes]
-        image = "ubuntu:20.04"
-
-# Storage configurations
-postgresql:
-  persistence:
-    size: 1Gi
-    storageClass: local-path
-
-redis:
-  persistence:
-    size: 512Mi
-    storageClass: local-path
-
-minio:
-  persistence:
-    size: 2Gi
-    storageClass: local-path
-
-# Component scaling
+# Basic GitLab configuration
 gitlab:
   webservice:
-    minReplicas: 1
-    maxReplicas: 1
     ingress:
       enabled: true
       tls:
         enabled: false
-    resources:
-      requests:
-        cpu: 200m
-        memory: 750Mi
-      limits:
-        cpu: 1
-        memory: 1.5Gi
-  sidekiq:
-    minReplicas: 1
-    maxReplicas: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 350Mi
-      limits:
-        cpu: 500m
-        memory: 750Mi
-  gitlab-shell:
-    minReplicas: 1
-    maxReplicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 200Mi
-      limits:
-        cpu: 300m
-        memory: 400Mi
-
-# Disable SSL/TLS for development
-gitlab:
-  webservice:
-    ingress:
-      tls:
-        enabled: false
-  gitlab-shell:
-    minReplicas: 1
-    maxReplicas: 1
-    service:
-      type: ClusterIP
-      externalTrafficPolicy: Cluster
-
-# Registry configuration
-registry:
-  enabled: true
-  tls:
-    enabled: false
-
-shared-secrets:
-  enabled: true
-  env: production
