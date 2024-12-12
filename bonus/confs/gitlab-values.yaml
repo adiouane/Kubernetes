@@ -12,7 +12,16 @@ global:
   email:
     from: gitlab@gitlab.local
     display_name: GitLab
-    reply_to: noreply@gitlab.local
+
+  # Disable unnecessary features
+  grafana:
+    enabled: false
+  kas:
+    enabled: false
+  praefect:
+    enabled: false
+  prometheus:
+    enabled: false
 
 # Disable cert-manager
 certmanager:
@@ -27,44 +36,121 @@ certmanager-issuer:
 nginx-ingress:
   enabled: false
 
-# Basic GitLab configuration
+# Disable GitLab Runner initially
+gitlab-runner:
+  install: false
+
+# Minimal storage configuration
+postgresql:
+  persistence:
+    size: 500Mi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 50m
+      memory: 200Mi
+    limits:
+      cpu: 100m
+      memory: 300Mi
+
+redis:
+  persistence:
+    size: 500Mi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 100m
+      memory: 200Mi
+
+minio:
+  persistence:
+    size: 1Gi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+
+# Ultra minimal component configuration
 gitlab:
+  toolbox:
+    enabled: false
+    backups:
+      enabled: false
+
   webservice:
-    ingress:
-      enabled: true
-      tls:
-        enabled: false
     minReplicas: 1
     maxReplicas: 1
+    deployment:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
-        cpu: 200m
-        memory: 1Gi
+        cpu: 100m
+        memory: 200Mi
       limits:
-        cpu: 1
-        memory: 2Gi
+        cpu: 200m
+        memory: 400Mi
+    workhorse:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 100Mi
+        limits:
+          cpu: 100m
+          memory: 200Mi
+
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
     resources:
       requests:
+        cpu: 50m
+        memory: 200Mi
+      limits:
         cpu: 100m
-        memory: 800Mi
+        memory: 300Mi
+
   gitlab-shell:
     minReplicas: 1
     maxReplicas: 1
     resources:
       requests:
+        cpu: 50m
+        memory: 50Mi
+      limits:
         cpu: 100m
-        memory: 200Mi
+        memory: 100Mi
 
-# Disable storage
-postgresql:
+registry:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 50Mi
+    limits:
+      cpu: 100m
+      memory: 100Mi
+
+# Disable monitoring
+prometheus:
+  install: false
+
+# Disable Gitaly extra storage
+gitaly:
   persistence:
-    size: 2Gi
-redis:
-  persistence:
-    size: 2Gi
-minio:
-  persistence:
-    size: 5Gi
+    size: 1Gi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 50m
+      memory: 200Mi
+    limits:
+      cpu: 100m
+      memory: 300Mi
