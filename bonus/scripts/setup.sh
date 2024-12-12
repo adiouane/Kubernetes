@@ -137,6 +137,18 @@ kubectl create secret generic gitlab-root-password \
   --from-literal=password=gitlabadmin \
   -n gitlab
 
+# Add this before GitLab installation
+# Check available storage
+available_storage=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+required_storage=5  # Minimum GB required
+
+if [ "$available_storage" -lt "$required_storage" ]; then
+    echo -e "${RED}Error: Not enough storage available${NC}"
+    echo "Required: ${required_storage}GB"
+    echo "Available: ${available_storage}GB"
+    exit 1
+fi
+
 # Install GitLab using Helm
 retry helm upgrade --install gitlab gitlab/gitlab \
   --timeout 600s \
@@ -144,8 +156,11 @@ retry helm upgrade --install gitlab gitlab/gitlab \
   -f /vagrant/confs/gitlab-values.yaml
 
 # Wait for GitLab to be ready
-echo "Waiting for GitLab pods to be ready..."
-kubectl wait --for=condition=ready pod -l release=gitlab -n gitlab --timeout=600s
+echo "Waiting for GitLab pods to be ready (this may take several minutes)..."
+kubectl wait --for=condition=ready pod -l release=gitlab -n gitlab --timeout=600s 2>&1 | \
+while read -r line; do
+    echo "Status: $line"
+done
 
 # Show access information
 echo "GitLab is being installed. This may take several minutes."

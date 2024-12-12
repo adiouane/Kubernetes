@@ -42,17 +42,17 @@ gitlab-runner:
 # Storage configurations
 postgresql:
   persistence:
-    size: 8Gi
+    size: 1Gi
     storageClass: local-path
 
 redis:
   persistence:
-    size: 5Gi
+    size: 512Mi
     storageClass: local-path
 
 minio:
   persistence:
-    size: 10Gi
+    size: 2Gi
     storageClass: local-path
 
 # Component scaling
@@ -67,20 +67,20 @@ gitlab:
     resources:
       requests:
         cpu: 200m
-        memory: 1Gi
+        memory: 750Mi
       limits:
         cpu: 1
-        memory: 2Gi
+        memory: 1.5Gi
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
     resources:
       requests:
-        cpu: 100m
-        memory: 800Mi
+        cpu: 50m
+        memory: 350Mi
       limits:
-        cpu: 800m
-        memory: 1.5Gi
+        cpu: 500m
+        memory: 750Mi
   gitlab-shell:
     minReplicas: 1
     maxReplicas: 1
