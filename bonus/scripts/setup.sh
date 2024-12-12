@@ -67,69 +67,71 @@ global:
     domain: gitlab.local
     https: false
     externalIP: 192.168.56.110
-  initialRootPassword: "gitlabadmin"
+  initialRootPassword:
+    secret: gitlab-root-password
+    key: password
   kubernetes:
     enabled: true
     inCluster: true
   email:
-    from: "gitlab@gitlab.local"
-    display_name: "GitLab"
-    reply_to: "noreply@gitlab.local"
+    from: gitlab@gitlab.local
+    display_name: GitLab
+    reply_to: noreply@gitlab.local
 
+# Disable cert-manager
 certmanager:
   install: false
   installCRDs: false
 
+# Add certmanager-issuer configuration
+certmanager-issuer:
+  email: gitlab@gitlab.local
+
+# Disable NGINX ingress as we're using Traefik
 nginx-ingress:
   enabled: false
 
-gitlab-runner:
-  install: true
-  runners:
-    config: |
-      [[runners]]
-        [runners.kubernetes]
-        image = "ubuntu:20.04"
-
-# Storage configurations
-postgresql:
-  persistence:
-    size: 8Gi
-    storageClass: local-path
-
-redis:
-  persistence:
-    size: 5Gi
-    storageClass: local-path
-
-minio:
-  persistence:
-    size: 10Gi
-    storageClass: local-path
-
-# Component scaling
+# Basic GitLab configuration
 gitlab:
   webservice:
-    minReplicas: 1
-    maxReplicas: 1
     ingress:
       enabled: true
       tls:
         enabled: false
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 2Gi
   sidekiq:
     minReplicas: 1
     maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 800Mi
   gitlab-shell:
     minReplicas: 1
     maxReplicas: 1
-    service:
-      type: ClusterIP
-      externalTrafficPolicy: Cluster
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
 
-registry:
-  enabled: true
-  tls:
-    enabled: false
+# Disable storage
+postgresql:
+  persistence:
+    size: 2Gi
+redis:
+  persistence:
+    size: 2Gi
+minio:
+  persistence:
+    size: 5Gi
 EOF
 
 # Create root password secret before installing GitLab
