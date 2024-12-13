@@ -6,151 +6,25 @@ global:
   initialRootPassword:
     secret: gitlab-root-password
     key: password
-  kubernetes:
-    enabled: true
-    inCluster: true
-  email:
-    from: gitlab@gitlab.local
-    display_name: GitLab
 
-  # Disable unnecessary features
-  grafana:
-    enabled: false
-  kas:
-    enabled: false
-  praefect:
-    enabled: false
-  prometheus:
-    enabled: false
-
-# Disable cert-manager
 certmanager:
   install: false
   installCRDs: false
 
-# Add certmanager-issuer configuration
-certmanager-issuer:
-  email: gitlab@gitlab.local
-
-# Disable NGINX ingress as we're using Traefik
 nginx-ingress:
   enabled: false
 
-# Disable GitLab Runner initially
-gitlab-runner:
-  install: false
-
-# Minimal storage configuration
 postgresql:
   persistence:
-    size: 500Mi
-    storageClass: local-path
-  resources:
-    requests:
-      cpu: 50m
-      memory: 200Mi
-    limits:
-      cpu: 100m
-      memory: 300Mi
-
+    size: 1Gi
 redis:
   persistence:
-    size: 500Mi
-    storageClass: local-path
-  resources:
-    requests:
-      cpu: 50m
-      memory: 100Mi
-    limits:
-      cpu: 100m
-      memory: 200Mi
-
+    size: 1Gi
 minio:
   persistence:
-    size: 1Gi
-    storageClass: local-path
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      cpu: 100m
-      memory: 256Mi
+    size: 2Gi
 
-# Ultra minimal component configuration
 gitlab:
-  toolbox:
-    enabled: false
-    backups:
-      enabled: false
-
   webservice:
     minReplicas: 1
     maxReplicas: 1
-    deployment:
-      minReplicas: 1
-      maxReplicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 200Mi
-      limits:
-        cpu: 200m
-        memory: 400Mi
-    workhorse:
-      resources:
-        requests:
-          cpu: 50m
-          memory: 100Mi
-        limits:
-          cpu: 100m
-          memory: 200Mi
-
-  sidekiq:
-    minReplicas: 1
-    maxReplicas: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 200Mi
-      limits:
-        cpu: 100m
-        memory: 300Mi
-
-  gitlab-shell:
-    minReplicas: 1
-    maxReplicas: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 50Mi
-      limits:
-        cpu: 100m
-        memory: 100Mi
-
-registry:
-  enabled: true
-  resources:
-    requests:
-      cpu: 50m
-      memory: 50Mi
-    limits:
-      cpu: 100m
-      memory: 100Mi
-
-# Disable monitoring
-prometheus:
-  install: false
-
-# Disable Gitaly extra storage
-gitaly:
-  persistence:
-    size: 1Gi
-    storageClass: local-path
-  resources:
-    requests:
-      cpu: 50m
-      memory: 200Mi
-    limits:
-      cpu: 100m
-      memory: 300Mi
