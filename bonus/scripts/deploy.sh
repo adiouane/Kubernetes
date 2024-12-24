@@ -6,6 +6,16 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Function to check if a command succeeded
+check_status() {
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ $1${NC}"
+    else
+        echo -e "${RED}✗ $1${NC}"
+        exit 1
+    fi
+}
+
 # Install GitLab using Helm
 echo "Installing GitLab..."
 helm upgrade --install gitlab gitlab/gitlab \
@@ -16,21 +26,16 @@ helm upgrade --install gitlab gitlab/gitlab \
   --set global.hosts.gitlab.name=gitlab.localhost \
   --set certmanager-issuer.email=me@example.com \
   --set global.appConfig.gitlab_rails.initial_root_password=gitlab123!
+check_status "GitLab installation"
 
-# Install ArgoCD
-echo "Installing ArgoCD..."
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# Wait for ArgoCD to be ready
-kubectl wait --for=condition=ready pods --all -n argocd --timeout=300s
-
-# Configure ArgoCD
-kubectl apply -f /vagrant/confs/argocd.yaml
+# Wait for GitLab pods to be ready
+echo "Waiting for GitLab pods to be ready..."
+kubectl wait --for=condition=ready pods --all -n gitlab --timeout=600s
+check_status "GitLab pods ready"
 
 echo -e "\n${GREEN}Deployment complete!${NC}"
 echo "----------------------------------------"
 echo "GitLab URL: http://gitlab.localhost:8888"
-echo "ArgoCD URL: http://192.168.56.110:9000"
 echo "GitLab credentials:"
 echo "Username: root"
 echo "Password: gitlab123!"
