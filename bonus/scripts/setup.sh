@@ -1,41 +1,80 @@
 #!/bin/bash
 
-# Clean up existing installation
-echo "Cleaning up existing installation..."
-helm uninstall gitlab -n gitlab || true
-kubectl delete namespace gitlab || true
-kubectl delete clusterrolebinding gitlab-prometheus-server || true
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Wait for namespace deletion to complete
-echo "Waiting for cleanup to complete..."
-kubectl wait --for=delete namespace/gitlab --timeout=300s || true
+# Function to check if a command succeeded
+check_status() {
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ $1${NC}"
+    else
+        echo -e "${RED}✗ $1${NC}"
+        exit 1
+    fi
+}
 
-# Create new namespace
-echo "Creating gitlab namespace..."
+# Update package list
+apt-get update
+check_status "Package list update"
+
+# Install basic dependencies
+apt-get install -y \
+    curl \
+    apt-transport-https \
+    ca-certificates \
+    software-properties-common \
+    gnupg \
+    lsb-release
+check_status "Basic dependencies installation"
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+rm get-docker.sh
+usermod -aG docker vagrant
+systemctl enable docker
+systemctl start docker
+check_status "Docker installation"
+
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+check_status "kubectl installation"
+
+# Install k3d
+curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+check_status "k3d installation"
+
+# Install Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+check_status "Helm installation"
+
+# Create k3d cluster
+k3d cluster create iot-mel-hada \
+    --api-port 6443 \
+    --port "8888:80@loadbalancer" \
+    --port "9000:9000@loadbalancer" \
+    --agents 2
+check_status "Cluster creation"
+
+# Configure kubectl
+mkdir -p /home/vagrant/.kube
+k3d kubeconfig get iot-mel-hada > /home/vagrant/.kube/config
+chown -R vagrant:vagrant /home/vagrant/.kube
+chmod 600 /home/vagrant/.kube/config
+
+# Create namespaces
 kubectl create namespace gitlab
+kubectl create namespace argocd
+kubectl create namespace dev
+check_status "Namespace creation"
 
 # Add GitLab Helm repository
-echo "Adding GitLab Helm repository..."
 helm repo add gitlab https://charts.gitlab.io/
 helm repo update
+check_status "Helm repository configuration"
 
-# Install GitLab with minimal configuration
-echo "Installing GitLab..."
-helm install gitlab gitlab/gitlab \
-  --namespace gitlab \
-  --set global.hosts.domain=gitlab.local \
-  --set global.hosts.externalIP=192.168.56.110 \
-  --set certmanager.install=false \
-  --set nginx-ingress.enabled=false \
-  # --set global.initialRootPassword=gitlabadmin \
-  --set prometheus.install=false \
-  --timeout 600s
-
-# Wait for GitLab webservice to be ready
-echo "Waiting for GitLab to be ready..."
-kubectl wait --for=condition=ready pod -l app=webservice -n gitlab --timeout=600s || true
-
-echo "GitLab is accessible at: http://192.168.56.110:8080"
-echo "Default username: root"
-echo "Default password: $(kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -o jsonpath='{.data.password}' | base64 --decode)"
-
+echo -e "\n${GREEN}Setup completed successfully!${NC}"
