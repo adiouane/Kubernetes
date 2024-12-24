@@ -1,20 +1,26 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "boxomatic/alpine-3.20"
+  config.vm.box = "ubuntu/focal64"
   
-  config.vm.provider "virtualbox" do |v|
-    v.memory = 4096  # GitLab needs more RAM
-    v.cpus = 2
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 4096
+    vb.cpus = 2
   end
 
-  config.vm.define "gitlab" do |gitlab|
-    gitlab.vm.hostname = "gitlab"
-    gitlab.vm.network "private_network", ip: "192.168.56.110"
-    gitlab.vm.synced_folder ".", "/vagrant"
-    gitlab.vm.provision "shell", path: "scripts/setup.sh"
+  config.vm.define "mel-hadaB" do |node|
+    node.vm.hostname = "mel-hadaB"
+    node.vm.network "private_network", ip: "192.168.56.110"
+    node.vm.synced_folder ".", "/vagrant"
+    
+    # Install required tools
+    node.vm.provision "shell", path: "scripts/setup.sh"
+    
+    # Deploy GitLab
+    node.vm.provision "shell", path: "scripts/deploy.sh"
+    
+    # Configure GitLab and migrate configuration
+    node.vm.provision "shell", path: "scripts/post-deploy.sh"
+    
+    # Configure hosts file
+    node.vm.provision "shell", path: "scripts/configHosts.sh"
   end
-end
-
-# > Why these settings?
-# > - GitLab requires more resources than our previous setups
-# > - We're using the same IP as before but with more RAM and CPUs
-# > - We'll use a setup script to install everything needed
+end 
