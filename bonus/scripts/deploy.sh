@@ -107,6 +107,9 @@ sleep 30  # Initial wait for pods to start creating
 kubectl wait --for=condition=available --timeout=900s deployment -l app=webservice -n gitlab
 
 echo "GitLab installation completed!"
+echo
+echo "Initial root password: gitlab123456"
+echo
 echo "GitLab URLs:"
 kubectl get ingress -n gitlab
 
@@ -117,7 +120,8 @@ $(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="Internal
 
 2. Access GitLab at: http://gitlab.local
 3. Login with:
-   Username: root"
+   Username: root
+   Password: gitlab123456"
 
 # get password 
 echo "GitLab root password: $(kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -ojsonpath='{.data.password}' | base64 --decode ; echo)"

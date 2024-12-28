@@ -6,8 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    # Update this URL to your local GitLab repository
-    repoURL: 'http://gitlab.localhost:8888/root/iot-p3-wil42.git'
+    repoURL: 'http://gitlab.gitlab.local:80/root/iot-p3-wil42.git'
     targetRevision: HEAD
     path: confs
   destination:
@@ -16,4 +15,4 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true 
+      selfHeal: true

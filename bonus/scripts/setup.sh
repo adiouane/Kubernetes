@@ -54,11 +54,11 @@ fi
 # Create k3d cluster with appropriate resources for GitLab
 echo "Creating k3d cluster..."
 k3d cluster create gitlab-cluster \
+    --api-port 6443 \
     --servers 1 \
     --agents 2 \
     --port "8080:80@loadbalancer" \
     --port "8443:443@loadbalancer" \
-    --api-port 6443 \
     --k3s-arg '--disable=traefik@server:*' \
     --k3s-arg '--disable=metrics-server@server:*' \
     --volume /tmp/k3dvol:/tmp/k3dvol@all
