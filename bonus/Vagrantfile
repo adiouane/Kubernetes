@@ -1,0 +1,26 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 4096
+    vb.cpus = 2
+  end
+
+  config.vm.define "mel-hadaB" do |node|
+    node.vm.hostname = "mel-hadaB"
+    node.vm.network "private_network", ip: "192.168.56.110"
+    node.vm.synced_folder ".", "/vagrant"
+    
+    # Configure hosts file
+    node.vm.provision "shell", path: "scripts/configHosts.sh"
+    
+    # Install required tools
+    node.vm.provision "shell", path: "scripts/setup.sh"
+    
+    # Deploy GitLab
+    node.vm.provision "shell", path: "scripts/deploy.sh"
+    
+    # Configure GitLab and migrate configuration
+    node.vm.provision "shell", path: "scripts/post-deploy.sh"
+  end
+end 

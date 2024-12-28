@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iot-p3-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # Update this URL to your local GitLab repository
+    repoURL: 'http://gitlab.localhost:8888/root/iot-p3-wil42.git'
+    targetRevision: HEAD
+    path: confs
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true 
