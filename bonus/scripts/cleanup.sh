@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#cleanup
 echo "Starting complete cleanup..."
 
 # 1. Remove GitLab cluster and k3d resources
@@ -92,6 +92,35 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
     cleanup_volumes
+fi
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to handle errors
+handle_error() {
+    echo "Error: $1"
+    exit 1
+}
+
+# Clean up GitLab resources if they exist
+if command_exists kubectl; then
+    echo "Cleaning up GitLab resources..."
+    
+    # Check if gitlab namespace exists
+    if kubectl get namespace gitlab >/dev/null 2>&1; then
+        echo "Removing GitLab Helm release..."
+        if command_exists helm; then
+            helm uninstall gitlab -n gitlab || echo "GitLab helm release already removed"
+        fi
+        
+        echo "Waiting for GitLab pods to terminate..."
+        kubectl delete namespace gitlab --timeout=300s || echo "GitLab namespace already removed"
+    else
+        echo "GitLab namespace not found, skipping..."
+    fi
 fi
 
 echo -e "\nCleanup completed!"

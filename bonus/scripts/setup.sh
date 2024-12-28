@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#setup
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."

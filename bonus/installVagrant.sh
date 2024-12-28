@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#install vagrant
 # Update system
 echo "Updating system packages..."
 sudo apt-get update && sudo apt-get upgrade -y
