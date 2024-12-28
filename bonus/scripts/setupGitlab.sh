@@ -1,6 +1,6 @@
 #!/bin/bash
-#setupgitlab
-# Update system
+#setupgitlab script
+# Update system 
 sudo apt-get update
 sudo apt-get install -y curl
 
@@ -127,7 +127,8 @@ $(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="Internal
 echo "GitLab root password: $(kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -ojsonpath='{.data.password}' | base64 --decode ; echo)"
 
 # Add to the hosts file these following lines
-sudo bash -c "echo '$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') gitlab.local minio.gitlab.local registry.gitlab.local kas.gitlab.local gitlab.gitlab.local' >> /etc/hosts"
+
 sudo bash -c "echo '127.0.0.1 gitlab.local minio.gitlab.local registry.gitlab.local kas.gitlab.local gitlab.gitlab.local' >> /etc/hosts"
+
 
 

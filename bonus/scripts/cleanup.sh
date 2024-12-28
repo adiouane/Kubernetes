@@ -1,5 +1,5 @@
 #!/bin/bash
-#cleanup
+#cleanup script
 echo "Starting complete cleanup..."
 
 # 1. Remove GitLab cluster and k3d resources

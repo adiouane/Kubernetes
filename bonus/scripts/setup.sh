@@ -1,5 +1,5 @@
 #!/bin/bash
-#setup
+#setup script
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
@@ -51,6 +51,15 @@ if ! command -v helm &> /dev/null; then
     echo "Helm installed successfully!"
 fi
 
+#install firefox
+if ! command -v firefox &> /dev/null; then
+    echo "Installing Firefox..."
+    sudo apt-get update
+    sudo apt-get install -y firefox
+    sudo sudo apt install xauth xorg openbox
+    echo "Firefox installed successfully!"
+fi
+
 # Create k3d cluster with appropriate resources for GitLab
 echo "Creating k3d cluster..."
 k3d cluster create gitlab-cluster \
@@ -61,7 +70,7 @@ k3d cluster create gitlab-cluster \
     --port "8443:443@loadbalancer" \
     --k3s-arg '--disable=traefik@server:*' \
     --k3s-arg '--disable=metrics-server@server:*' \
-    --volume /tmp/k3dvol:/tmp/k3dvol@all
+    --volume /tmp/k3dvol:/tmp/k3dvol@all # noooooo neeeed
 
 # Wait for cluster to be ready
 echo "Waiting for cluster to be ready..."
