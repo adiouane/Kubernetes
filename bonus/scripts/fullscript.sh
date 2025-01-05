@@ -69,8 +69,7 @@ setup_cluster() {
         --servers 1 \
         --agents 1 \
         --port "8080:80@loadbalancer" \
-        --k3s-arg '--disable=traefik@server:*' \
-        --k3s-arg '--disable=metrics-server@server:*' 
+        --port "8443:443@loadbalancer"
     # Wait for cluster to be ready
     info "Waiting for cluster to be ready..."
     until kubectl get nodes | grep -q " Ready"; do
@@ -86,60 +85,6 @@ setup_cluster() {
     info "Cluster setup completed"
 }
 
-create_ingress_config() {
-    cat <<EOF > ingress-nginx-values.yaml
-controller:
-  kind: Deployment
-  replicaCount: 1
-  publishService:
-    enabled: true
-  service:
-    enabled: true
-    type: LoadBalancer
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
-EOF
-}
-
-setup_ingress() {
-    info "Setting up NGINX Ingress..."
-    
-    # Delete any existing ingress controller
-    kubectl delete namespace ingress-nginx 2>/dev/null || true
-    sleep 5
-    
-    # Create IngressClass
-    cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  name: nginx
-  annotations:
-    meta.helm.sh/release-name: gitlab
-    meta.helm.sh/release-namespace: gitlab
-  labels:
-    app.kubernetes.io/managed-by: Helm
-spec:
-  controller: k8s.io/ingress-nginx
-EOF
-
-    # Install NGINX Ingress Controller
-    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
-
-    # Wait for ingress controller to be ready
-    kubectl wait --namespace ingress-nginx \
-        --for=condition=ready pod \
-        --selector=app.kubernetes.io/component=controller \
-        --timeout=300s
-
-    info "NGINX Ingress Controller setup completed"
-}
-
 create_gitlab_config() {
     cat <<EOF > gitlab-values.yaml
 global:
@@ -153,7 +98,7 @@ global:
   ingress:
     configureCertmanager: false
     class: nginx
-    enabled: true
+    enabled: false
     tls:
       enabled: false
 
@@ -169,117 +114,16 @@ gitlab-runner:
 prometheus:
   install: false
 
-redis:
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
-  persistence:
-    size: 1Gi
-
-postgresql:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
-  persistence:
-    size: 1Gi
 
 gitlab:
   webservice:
-    minReplicas: 1
-    maxReplicas: 1
-    ingress:
-      enabled: true
       hosts:
         - gitlab.localhost
-    resources:
-      requests:
-        cpu: 300m
-        memory: 1Gi
-      limits:
-        cpu: 800m
-        memory: 2Gi
-    workhorse:
-      resources:
-        requests:
-          cpu: 100m
-          memory: 100Mi
-        limits:
-          cpu: 200m
-          memory: 250Mi
-  sidekiq:
-    minReplicas: 1
-    maxReplicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 600Mi
-      limits:
-        cpu: 300m
-        memory: 1Gi
-  gitaly:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 200Mi
-      limits:
-        cpu: 300m
-        memory: 400Mi
-    persistence:
-      size: 2Gi
+
 EOF
 }
 
-setup_argocd() {
-    info "Setting up ArgoCD..."
-    
-    # Install ArgoCD
-    sudo kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-    # Wait for ArgoCD server to be ready
-    sudo kubectl wait --namespace argocd \
-        --for=condition=ready pod \
-        --selector=app.kubernetes.io/name=argocd-server \
-        --timeout=300s
-
-    # Create ArgoCD ingress
-    cat <<EOF | sudo kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argocd-server-ingress
-  namespace: argocd
-  annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    nginx.ingress.kubernetes.io/rewrite-target: /\$2
-spec:
-  ingressClassName: nginx
-  rules:
-  - http:
-      paths:
-      - path: /argocd(/|$)(.*)
-        pathType: Prefix
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
-EOF
-
-    # Configure ArgoCD server
-    sudo kubectl patch cm argocd-cmd-params-cm -n argocd --type=merge -p '{"data": {"server.insecure": "true"}}'
-    sudo kubectl -n argocd rollout restart deploy argocd-server
-
-    info "ArgoCD setup completed"
-}
 
 deploy_applications() {
     info "Deploying applications..."
@@ -290,6 +134,7 @@ deploy_applications() {
     sudo sed -i '/registry.localhost/d' /etc/hosts
     sudo sed -i '/kas.localhost/d' /etc/hosts
     echo "127.0.0.1 gitlab.localhost minio.localhost registry.localhost kas.localhost" | sudo tee -a /etc/hosts
+    
 
     # Install GitLab
     info "Adding GitLab Helm repository..."
@@ -308,13 +153,14 @@ deploy_applications() {
         --values gitlab-values.yaml \
         --wait
 
-    # Setup ArgoCD
-    setup_argocd
+
 
     # Wait for services to be ready
     info "Waiting for services to be ready..."
     kubectl wait --namespace gitlab --for=condition=ready pod -l app=webservice --timeout=600s || true
-    kubectl wait --namespace gitlab --for=condition=ready pod -l app=gitlab-shell --timeout=300s || true
+
+    #expose gitlab to outside
+    sudo kubectl port-forward services/gitlab-webservice-default 80:8181 -n gitlab --address="0.0.0.0"
 
     # Get access credentials
     info "Retrieving access credentials..."
@@ -326,21 +172,12 @@ deploy_applications() {
     GITLAB_PASSWORD=$(kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -ojsonpath='{.data.password}' | base64 --decode)
     echo -e "GitLab Password: $GITLAB_PASSWORD"
     
-    echo -e "\nArgoCD URL: http://localhost:8080/argocd"
-    echo -e "ArgoCD Username: admin"
     
-    # Get ArgoCD admin password
-    ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-    echo -e "ArgoCD Password: $ARGOCD_PASSWORD"
-
     # Print status
     echo -e "\n${BLUE}=== Pod Status ===${NC}"
-    kubectl get pods -n gitlab
-    kubectl get pods -n argocd
-    kubectl get pods -n ingress-nginx
-
+    sudo kubectl get pods -n gitlab
     echo -e "\n${BLUE}=== Ingress Status ===${NC}"
-    kubectl get ingress -A
+    sudo kubectl get ingress -A
 }
 
 verify_services() {
@@ -356,15 +193,6 @@ verify_services() {
         sleep 10
     done
     
-    # Wait for ArgoCD to be ready
-    for i in {1..30}; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/argocd | grep -q "200\|302"; then
-            success "ArgoCD is accessible"
-            break
-        fi
-        info "Waiting for ArgoCD to be accessible... (attempt $i/30)"
-        sleep 10
-    done
 }
 
 main() {
@@ -380,12 +208,10 @@ main() {
     cleanup
     install_dependencies
     setup_cluster
-    create_ingress_config
-    setup_ingress
     create_gitlab_config
     deploy_applications
     verify_services
-    
+    echo "gitlab-webservice-default.gitlab.svc.cluster.local"
     success "Setup completed! Please wait a few minutes for all services to start."
     info "Note: If services are not immediately accessible, wait 5-10 minutes for full initialization."
 }
