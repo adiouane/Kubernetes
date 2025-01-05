@@ -87,59 +87,7 @@ setup_cluster() {
     info "Cluster setup completed"
 }
 
-# create_ingress_config() {
-#     cat <<EOF > ingress-nginx-values.yaml
-# controller:
-#   kind: Deployment
-#   replicaCount: 1
-#   publishService:
-#     enabled: true
-#   service:
-#     enabled: true
-#     type: LoadBalancer
-#   resources:
-#     requests:
-#       cpu: 100m
-#       memory: 128Mi
-#     limits:
-#       cpu: 200m
-#       memory: 256Mi
-# EOF
-# }
 
-# setup_ingress() {
-#     info "Setting up NGINX Ingress..."
-    
-#     # Delete any existing ingress controller
-#     kubectl delete namespace ingress-nginx 2>/dev/null || true
-#     sleep 5
-    
-#     # Create IngressClass
-#     cat <<EOF | kubectl apply -f -
-# apiVersion: networking.k8s.io/v1
-# kind: IngressClass
-# metadata:
-#   name: nginx
-#   annotations:
-#     meta.helm.sh/release-name: gitlab
-#     meta.helm.sh/release-namespace: gitlab
-#   labels:
-#     app.kubernetes.io/managed-by: Helm
-# spec:
-#   controller: k8s.io/ingress-nginx
-# EOF
-
-#     # Install NGINX Ingress Controller
-#     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
-
-#     # Wait for ingress controller to be ready
-#     kubectl wait --namespace ingress-nginx \
-#         --for=condition=ready pod \
-#         --selector=app.kubernetes.io/component=controller \
-#         --timeout=300s
-
-#     info "NGINX Ingress Controller setup completed"
-# }
 
 create_gitlab_config() {
     cat <<EOF > gitlab-values.yaml
