@@ -10,7 +10,6 @@ NC='\033[0m'
 info() { echo -e "${BLUE}[INFO] $1${NC}"; }
 success() { echo -e "${GREEN}[SUCCESS] $1${NC}"; }
 error() { echo -e "${RED}[ERROR] $1${NC}"; }
-GITLAB_TOKEN="${GITLAB_TOKEN}"
 
 # Clean up existing processes and resources
 cleanup() {
@@ -38,32 +37,6 @@ install_argocd() {
 # Configure ArgoCD
 configure_argocd() {
     info "Configuring ArgoCD..."
-    
-    # Create GitLab auth secret
-    kubectl create secret generic gitlab-auth \
-        -n argocd \
-        --from-literal=username=root \
-        --from-literal=password=$GITLAB_TOKEN \
-        --dry-run=client -o yaml | kubectl apply -f -
-
-    # Create ArgoCD CM
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  url: https://localhost:8888
-  repositories: |
-    - url: http://gitlab-webservice-default.gitlab.svc.cluster.local:8181/root/iot.git
-      type: git
-      insecure: true
-      insecureIgnoreHostKey: true
-EOF
 
     # Create Application
     cat <<EOF | kubectl apply -f -
