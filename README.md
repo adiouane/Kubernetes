@@ -115,10 +115,10 @@ If Docker is not installed, run the following commands:
 bash
 Copy
 
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-rm get-docker.sh
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    sudo usermod -aG docker $USER
+    rm get-docker.sh
 
 1.2 Install k3d
 
@@ -126,7 +126,7 @@ Install k3d to create a local Kubernetes cluster:
 bash
 Copy
 
-wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+    wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
 1.3 Install kubectl
 
@@ -134,9 +134,9 @@ Install kubectl to interact with your Kubernetes cluster:
 bash
 Copy
 
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-chmod +x kubectl
-sudo mv kubectl /usr/local/bin/kubectl
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    chmod +x kubectl
+    sudo mv kubectl /usr/local/bin/kubectl
 
 1.4 Install Helm
 
@@ -144,7 +144,7 @@ Install Helm to manage Kubernetes applications:
 bash
 Copy
 
-curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
 Step 2: Set Up a Local Kubernetes Cluster
 2.1 Create a k3d Cluster
@@ -153,11 +153,11 @@ Create a minimal Kubernetes cluster using k3d:
 bash
 Copy
 
-k3d cluster create gitlab-cluster \
-    --servers 1 \
-    --agents 1 \
-    --port "8080:80@loadbalancer" \
-    --port "8443:443@loadbalancer"
+    k3d cluster create gitlab-cluster \
+        --servers 1 \
+        --agents 1 \
+        --port "8080:80@loadbalancer" \
+        --port "8443:443@loadbalancer"
 
 2.2 Verify the Cluster
 
@@ -173,9 +173,9 @@ Create namespaces for GitLab, ArgoCD, and your application:
 bash
 Copy
 
-kubectl create namespace gitlab
-kubectl create namespace argocd
-kubectl create namespace dev
+    kubectl create namespace gitlab
+    kubectl create namespace argocd
+    kubectl create namespace dev
 
 Step 3: Deploy GitLab
 3.1 Create GitLab Configuration
@@ -184,51 +184,51 @@ Create a gitlab-values.yaml file to configure GitLab:
 yaml
 Copy
 
-global:
-  hosts:
-    domain: localhost
-    https: false
-    gitlab:
-      name: gitlab.localhost
-      https: false
-    externalUrl: http://gitlab.localhost:8080
-  ingress:
-    configureCertmanager: false
-    class: nginx
-    enabled: false
-    tls:
+    global:
+      hosts:
+        domain: localhost
+        https: false
+        gitlab:
+          name: gitlab.localhost
+          https: false
+        externalUrl: http://gitlab.localhost:8080
+      ingress:
+        configureCertmanager: false
+        class: nginx
+        enabled: false
+        tls:
+          enabled: false
+    
+    certmanager:
+      install: false
+    
+    nginx-ingress:
       enabled: false
-
-certmanager:
-  install: false
-
-nginx-ingress:
-  enabled: false
-
-gitlab-runner:
-  install: false
-
-prometheus:
-  install: false
-
-gitlab:
-  webservice:
-    hosts:
-      - gitlab.localhost
+    
+    gitlab-runner:
+      install: false
+    
+    prometheus:
+      install: false
+    
+    gitlab:
+      webservice:
+        hosts:
+          - gitlab.localhost
 
 3.2 Install GitLab Using Helm
 
 Add the GitLab Helm repository and deploy GitLab:
 bash
 Copy
-
-helm repo add gitlab https://charts.gitlab.io/
-helm repo update
-helm upgrade --install gitlab gitlab/gitlab \
-    --namespace gitlab \
-    --timeout 600s \
-    --values gitlab-values.yaml \
-    --wait
+    
+    helm repo add gitlab https://charts.gitlab.io/
+    helm repo update
+    helm upgrade --install gitlab gitlab/gitlab \
+        --namespace gitlab \
+        --timeout 600s \
+        --values gitlab-values.yaml \
+        --wait
 
 3.3 Access GitLab
 
@@ -254,8 +254,8 @@ Install ArgoCD in the argocd namespace:
 bash
 Copy
 
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    kubectl create namespace argocd
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 4.2 Configure ArgoCD
 
@@ -306,10 +306,10 @@ Step 5: Deploy a Website Using Nginx
 Create a Dockerfile for your website:
 dockerfile
 Copy
-
-FROM nginx:alpine
-COPY index.html /usr/share/nginx/html/index.html
-EXPOSE 80
+    
+    FROM nginx:alpine
+    COPY index.html /usr/share/nginx/html/index.html
+    EXPOSE 80
 
 5.2 Build and Push the Docker Image
 
