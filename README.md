@@ -84,6 +84,314 @@ Container Registry (GitLab Registry)
 Kubernetes Management (K3d)
 GitOps (Argo CD)# Kubernetes
 # Kubernetes
+Full Tutorial: Setting Up GitLab Locally, Connecting It with ArgoCD, and Testing with a Website Running on Docker
+
+This tutorial provides a step-by-step guide to:
+
+    Set up GitLab locally using Kubernetes (k3d).
+
+    Connect GitLab with ArgoCD for GitOps-based deployments.
+
+    Test the setup using a simple website running on a Docker container hosted on Nginx.
+
+Prerequisites
+
+Before starting, ensure you have the following installed:
+
+    Docker: For containerization.
+
+    k3d: A lightweight Kubernetes distribution for local development.
+
+    kubectl: Kubernetes command-line tool.
+
+    Helm: Package manager for Kubernetes.
+
+    Git: Version control system.
+
+Step 1: Install Dependencies
+1.1 Install Docker
+
+If Docker is not installed, run the following commands:
+bash
+Copy
+
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+rm get-docker.sh
+
+1.2 Install k3d
+
+Install k3d to create a local Kubernetes cluster:
+bash
+Copy
+
+wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+1.3 Install kubectl
+
+Install kubectl to interact with your Kubernetes cluster:
+bash
+Copy
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/kubectl
+
+1.4 Install Helm
+
+Install Helm to manage Kubernetes applications:
+bash
+Copy
+
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+Step 2: Set Up a Local Kubernetes Cluster
+2.1 Create a k3d Cluster
+
+Create a minimal Kubernetes cluster using k3d:
+bash
+Copy
+
+k3d cluster create gitlab-cluster \
+    --servers 1 \
+    --agents 1 \
+    --port "8080:80@loadbalancer" \
+    --port "8443:443@loadbalancer"
+
+2.2 Verify the Cluster
+
+Check if the cluster is running:
+bash
+Copy
+
+kubectl get nodes
+
+2.3 Create Namespaces
+
+Create namespaces for GitLab, ArgoCD, and your application:
+bash
+Copy
+
+kubectl create namespace gitlab
+kubectl create namespace argocd
+kubectl create namespace dev
+
+Step 3: Deploy GitLab
+3.1 Create GitLab Configuration
+
+Create a gitlab-values.yaml file to configure GitLab:
+yaml
+Copy
+
+global:
+  hosts:
+    domain: localhost
+    https: false
+    gitlab:
+      name: gitlab.localhost
+      https: false
+    externalUrl: http://gitlab.localhost:8080
+  ingress:
+    configureCertmanager: false
+    class: nginx
+    enabled: false
+    tls:
+      enabled: false
+
+certmanager:
+  install: false
+
+nginx-ingress:
+  enabled: false
+
+gitlab-runner:
+  install: false
+
+prometheus:
+  install: false
+
+gitlab:
+  webservice:
+    hosts:
+      - gitlab.localhost
+
+3.2 Install GitLab Using Helm
+
+Add the GitLab Helm repository and deploy GitLab:
+bash
+Copy
+
+helm repo add gitlab https://charts.gitlab.io/
+helm repo update
+helm upgrade --install gitlab gitlab/gitlab \
+    --namespace gitlab \
+    --timeout 600s \
+    --values gitlab-values.yaml \
+    --wait
+
+3.3 Access GitLab
+
+    Get the GitLab root password:
+    bash
+    Copy
+
+    kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -ojsonpath='{.data.password}' | base64 --decode
+
+    Access GitLab at:
+    Copy
+
+    http://gitlab.localhost:8080
+
+        Username: root
+
+        Password: (from the command above)
+
+Step 4: Deploy ArgoCD
+4.1 Install ArgoCD
+
+Install ArgoCD in the argocd namespace:
+bash
+Copy
+
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+4.2 Configure ArgoCD
+
+
+    Create an ArgoCD application to sync your GitLab repository:
+    yaml
+    Copy
+
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: iot
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: 'http://gitlab-webservice-default.gitlab.svc.cluster.local:8181/root/iot.git'
+        targetRevision: HEAD
+        path: confs
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+
+4.3 Access ArgoCD
+
+    Set up port forwarding:
+    bash
+    Copy
+
+    kubectl port-forward svc/argocd-server -n argocd 8888:443
+
+    Access ArgoCD at:
+    Copy
+
+    https://localhost:8888
+
+        Username: admin
+
+        Password: (retrieve using kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 --decode)
+
+Step 5: Deploy a Website Using Nginx
+5.1 Create a Dockerfile
+
+Create a Dockerfile for your website:
+dockerfile
+Copy
+
+FROM nginx:alpine
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80
+
+5.2 Build and Push the Docker Image
+
+    Build the Docker image:
+    bash
+    Copy
+
+    docker build -t hamid1337/website:v2 .
+
+    Push the image to Docker Hub:
+    bash
+    Copy
+
+    docker push hamid1337/website:v2
+
+5.3 Deploy the Website to Kubernetes
+
+    Create a Kubernetes deployment and service:
+    yaml
+    Copy
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: wil-playground
+      namespace: dev
+    spec:
+      selector:
+        matchLabels:
+          app: wil-playground
+      template:
+        metadata:
+          labels:
+            app: wil-playground
+        spec:
+          containers:
+          - name: wil
+            image: hamid1337/website:v2
+            ports:
+            - containerPort: 80
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: svc-wil-playground
+      namespace: dev
+    spec:
+      selector:
+        app: wil-playground
+      ports:
+        - protocol: TCP
+          port: 3030
+          targetPort: 80
+
+    Apply the configuration:
+    bash
+    Copy
+
+    kubectl apply -f deployment.yaml -n dev
+
+    Access the website at:
+    Copy
+
+    http://localhost:3030
+
+Step 6: Clean Up
+
+    Delete the k3d cluster:
+    bash
+    Copy
+
+    k3d cluster delete gitlab-cluster
+
+    Remove unused Docker images:
+    bash
+    Copy
+
+    docker system prune -af
+
+Conclusion
+
+You’ve successfully set up GitLab locally, connected it with ArgoCD, and deployed a website using Docker and Kubernetes. This setup is ideal for local development and testing GitOps workflows.
 # Kubernetes
 
 Docker Image Update and Kubernetes Deployment Tutorial
