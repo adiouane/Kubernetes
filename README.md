@@ -85,3 +85,206 @@ Kubernetes Management (K3d)
 GitOps (Argo CD)# Kubernetes
 # Kubernetes
 # Kubernetes
+
+Docker Image Update and Kubernetes Deployment Tutorial
+
+This guide walks you through the process of:
+
+    Updating a Docker image.
+
+    Pushing the updated image to Docker Hub.
+
+    Deploying the updated image to Kubernetes.
+
+Prerequisites
+
+    Docker installed on your machine.
+
+    A Docker Hub account.
+
+    Kubernetes cluster (e.g., Minikube, k3d, or any other cluster).
+
+    Basic knowledge of Docker and Kubernetes.
+
+Step 1: Update Your Application
+
+    Make the necessary changes to your application files (e.g., index.html).
+
+    Test the changes locally to ensure they work as expected.
+
+Step 2: Rebuild the Docker Image
+
+    Navigate to the directory containing your Dockerfile and application files.
+
+    Rebuild the Docker image with a version tag (e.g., v2):
+    bash
+    Copy
+
+    docker build -t hamid1337/website:v2 .
+
+    Here:
+
+        hamid1337/website is your Docker Hub repository name.
+
+        v2 is the version tag (you can use any versioning scheme, e.g., v1, v2, etc.).
+
+Step 3: Push the Updated Image to Docker Hub
+
+    Log in to Docker Hub:
+    bash
+    Copy
+
+    docker login
+
+    Enter your Docker Hub username and password when prompted.
+
+    Push the versioned image to Docker Hub:
+    bash
+    Copy
+
+    docker push hamid1337/website:v2
+
+    (Optional) Update the latest tag:
+
+        Tag the versioned image as latest:
+        bash
+        Copy
+
+        docker tag hamid1337/website:v2 hamid1337/website:latest
+
+        Push the latest tag to Docker Hub:
+        bash
+        Copy
+
+        docker push hamid1337/website:latest
+
+    Verify the update on Docker Hub:
+
+        Go to your Docker Hub repository:
+        Copy
+
+        https://hub.docker.com/r/hamid1337/website
+
+        Check the Tags tab to confirm that the new tag (v2 or latest) has been updated.
+
+Step 4: Update the Kubernetes Deployment
+
+    Update your Kubernetes deployment YAML file to use the new image tag.
+
+    Example YAML (deployment.yaml):
+    yaml
+    Copy
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: wil-playground
+      namespace: dev
+    spec:
+      selector:
+        matchLabels:
+          app: wil-playground
+      template:
+        metadata:
+          labels:
+            app: wil-playground
+        spec:
+          containers:
+          - name: wil
+            image: hamid1337/website:v2  # Use the updated image tag
+            ports:
+            - containerPort: 80
+
+    Apply the updated deployment to your Kubernetes cluster:
+    bash
+    Copy
+
+    kubectl apply -f deployment.yaml -n dev
+
+    Restart the deployment to ensure Kubernetes pulls the updated image:
+    bash
+    Copy
+
+    kubectl rollout restart deployment/wil-playground -n dev
+
+Step 5: Verify the Deployment
+
+    Check the status of the pods:
+    bash
+    Copy
+
+    kubectl get pods -n dev
+
+    Describe the pod to confirm it's using the updated image:
+    bash
+    Copy
+
+    kubectl describe pod <pod-name> -n dev
+
+    Look for the Image field under the Containers section.
+
+    Check the logs for errors:
+    bash
+    Copy
+
+    kubectl logs <pod-name> -n dev
+
+    Access the application:
+
+        If using a service, check the service configuration:
+        bash
+        Copy
+
+        kubectl describe svc svc-wil-playground -n dev
+
+        Access the application at the appropriate URL (e.g., http://localhost:3030).
+
+Step 6: Clean Up (Optional)
+
+    Remove old images from your local machine:
+    bash
+    Copy
+
+    docker rmi hamid1337/website:v1  # Replace v1 with the old tag
+
+    Remove unused Docker images:
+    bash
+    Copy
+
+    docker image prune -f
+
+    Delete old Kubernetes resources if no longer needed:
+    bash
+    Copy
+
+    kubectl delete deployment wil-playground -n dev
+    kubectl delete svc svc-wil-playground -n dev
+
+Cheat Sheet
+
+Here’s a quick cheat sheet for the commands:
+Action	Command
+Build Docker image	docker build -t hamid1337/website:v2 .
+Log in to Docker Hub	docker login
+Push image to Docker Hub	docker push hamid1337/website:v2
+Tag image as latest	docker tag hamid1337/website:v2 hamid1337/website:latest
+Push latest tag	docker push hamid1337/website:latest
+Apply Kubernetes deployment	kubectl apply -f deployment.yaml -n dev
+Restart deployment	kubectl rollout restart deployment/wil-playground -n dev
+Check pods	kubectl get pods -n dev
+Describe pod	kubectl describe pod <pod-name> -n dev
+Check logs	kubectl logs <pod-name> -n dev
+Describe service	kubectl describe svc svc-wil-playground -n dev
+Tips for Future Updates
+
+    Always use version tags (e.g., v1, v2) instead of relying solely on latest.
+
+    Test your changes locally before pushing to Docker Hub.
+
+    Use kubectl rollout restart to force Kubernetes to pull the updated image.
+
+    Regularly clean up unused Docker images and Kubernetes resources.
+
+Conclusion
+
+By following this tutorial, you can easily update your Docker image, push it to Docker Hub, and deploy it to Kubernetes. Save this README as a reference, and you'll never forget the steps! 😊
