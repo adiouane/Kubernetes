@@ -83,8 +83,8 @@ CI/CD (GitLab CI)
 Container Registry (GitLab Registry)
 Kubernetes Management (K3d)
 GitOps (Argo CD)# Kubernetes
-# Kubernetes
-Full Tutorial: Setting Up GitLab Locally, Connecting It with ArgoCD, and Testing with a Website Running on Docker
+___
+# Full Tutorial: Setting Up GitLab Locally, Connecting It with ArgoCD, and Testing with a Website Running on Docker
 
 This tutorial provides a step-by-step guide to:
 
