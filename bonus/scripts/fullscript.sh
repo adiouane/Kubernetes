@@ -69,7 +69,8 @@ setup_cluster() {
         --servers 1 \
         --agents 1 \
         --port "8080:80@loadbalancer" \
-        --port "8443:443@loadbalancer"
+        --port "8443:443@loadbalancer" \
+        
     # Wait for cluster to be ready
     info "Waiting for cluster to be ready..."
     until kubectl get nodes | grep -q " Ready"; do
@@ -85,7 +86,10 @@ setup_cluster() {
     info "Cluster setup completed"
 }
 
+ #Create GitLab configuration
 create_gitlab_config() {
+    info "Creating GitLab configuration..."
+    
     cat <<EOF > gitlab-values.yaml
 global:
   hosts:
@@ -114,15 +118,12 @@ gitlab-runner:
 prometheus:
   install: false
 
-
 gitlab:
   webservice:
-      hosts:
-        - gitlab.localhost
-
+    hosts:
+      - gitlab.localhost
 EOF
 }
-
 
 
 deploy_applications() {
@@ -150,6 +151,7 @@ deploy_applications() {
     helm upgrade --install gitlab gitlab/gitlab \
         --namespace gitlab \
         --timeout 600s \
+        --set certmanager-issuer.email=me@example.com \
         --values gitlab-values.yaml \
         --wait
 
@@ -160,12 +162,11 @@ deploy_applications() {
     kubectl wait --namespace gitlab --for=condition=ready pod -l app=webservice --timeout=600s || true
 
     #expose gitlab to outside
-    sudo kubectl port-forward services/gitlab-webservice-default 80:8181 -n gitlab --address="0.0.0.0"
-
+    kubectl port-forward svc/gitlab-webservice-default -n gitlab 8081:8181 &
     # Get access credentials
     info "Retrieving access credentials..."
     echo -e "\n${GREEN}=== Access Information ===${NC}"
-    echo -e "GitLab URL: http://gitlab.localhost:8080"
+    echo -e "GitLab URL: http://gitlab.localhost:8081"
     echo -e "GitLab Username: root"
     
     # Get GitLab root password
@@ -180,20 +181,39 @@ deploy_applications() {
     sudo kubectl get ingress -A
 }
 
-verify_services() {
-    info "Verifying services accessibility..."
-    
-    # Wait for GitLab webservice to be ready
+# Configure LoadBalancer
+setup_loadbalancer() {
+    info "Setting up LoadBalancer for GitLab..."
+
+    # Patch the service
+    kubectl patch svc gitlab-webservice-default -n gitlab -p '{"spec": {"type": "LoadBalancer"}}'
+    # kubectl port-forward svc/gitlab-webservice-default  -n gitlab 8888:443
+    # Wait for LoadBalancer IP
     for i in {1..30}; do
-        if curl -s -o /dev/null -w "%{http_code}" http://gitlab.localhost:8080/users/sign_in | grep -q "200\|302"; then
-            success "GitLab is accessible"
+        GITLAB_IP=$(kubectl get svc gitlab-webservice-default -n gitlab -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+        if [ ! -z "$GITLAB_IP" ]; then
+            success "GitLab LoadBalancer IP assigned: $GITLAB_IP"
             break
         fi
-        info "Waiting for GitLab to be accessible... (attempt $i/30)"
+        info "Waiting for GitLab IP... (attempt $i/30)"
         sleep 10
     done
-    
 }
+
+
+# Update hosts file
+update_hosts() {
+    info "Updating /etc/hosts file..."
+
+    GITLAB_IP=$(kubectl get svc gitlab-webservice-default -n gitlab -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    
+    # Remove old entries
+    sudo sed -i '/gitlab.localhost/d' /etc/hosts
+    
+    # Add new entry
+    echo "$GITLAB_IP gitlab.localhost" | sudo tee -a /etc/hosts
+}
+
 
 main() {
     info "Starting IoT Bonus Setup (Storage Optimized)"
@@ -210,7 +230,8 @@ main() {
     setup_cluster
     create_gitlab_config
     deploy_applications
-    verify_services
+    setup_loadbalancer
+    update_hosts
     echo "gitlab-webservice-default.gitlab.svc.cluster.local"
     success "Setup completed! Please wait a few minutes for all services to start."
     info "Note: If services are not immediately accessible, wait 5-10 minutes for full initialization."
