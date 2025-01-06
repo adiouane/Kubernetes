@@ -229,6 +229,14 @@ Add the GitLab Helm repository and deploy GitLab:
         --timeout 600s \
         --values gitlab-values.yaml \
         --wait
+Wait for webservice to be ready
+
+    kubectl wait --namespace gitlab --for=condition=ready pod -l app=webservice --timeout=600s || true
+
+expose gitlab to the front-end
+
+    kubectl port-forward svc/gitlab-webservice-default -n gitlab 80:8181 &
+
 
 3.3 Access GitLab
 
@@ -285,19 +293,14 @@ Install ArgoCD in the argocd namespace:
 
 4.3 Access ArgoCD
 
-    Set up port forwarding:
+Set up port forwarding:
     
-    
+    kubectl port-forward svc/argocd-server -n argocd 8888:443 &
 
-    kubectl port-forward svc/argocd-server -n argocd 8888:443
-
-    Access ArgoCD at:
-    
-
-    https://localhost:8888
+Access ArgoCD at:
+https://localhost:8888
 
         Username: admin
-
         Password: (retrieve using kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 --decode)
 
 Step 5: Deploy a Website Using Nginx
@@ -347,7 +350,7 @@ dockerfile
         spec:
           containers:
           - name: wil
-            image: hamid1337/website:v2
+            image: adiouane/website:v2
             ports:
             - containerPort: 80
     ---
