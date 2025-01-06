@@ -112,8 +112,8 @@ Step 1: Install Dependencies
 1.1 Install Docker
 
 If Docker is not installed, run the following commands:
-bash
-Copy
+
+
 
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
@@ -123,16 +123,16 @@ Copy
 1.2 Install k3d
 
 Install k3d to create a local Kubernetes cluster:
-bash
-Copy
 
-    wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+
+    wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | 
 
 1.3 Install kubectl
 
 Install kubectl to interact with your Kubernetes cluster:
-bash
-Copy
+
+
 
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     chmod +x kubectl
@@ -141,17 +141,17 @@ Copy
 1.4 Install Helm
 
 Install Helm to manage Kubernetes applications:
-bash
-Copy
 
-    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+
+    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | 
 
 Step 2: Set Up a Local Kubernetes Cluster
 2.1 Create a k3d Cluster
 
 Create a minimal Kubernetes cluster using k3d:
-bash
-Copy
+
+
 
     k3d cluster create gitlab-cluster \
         --servers 1 \
@@ -162,16 +162,16 @@ Copy
 2.2 Verify the Cluster
 
 Check if the cluster is running:
-bash
-Copy
+
+
 
 kubectl get nodes
 
 2.3 Create Namespaces
 
 Create namespaces for GitLab, ArgoCD, and your application:
-bash
-Copy
+
+
 
     kubectl create namespace gitlab
     kubectl create namespace argocd
@@ -182,7 +182,7 @@ Step 3: Deploy GitLab
 
 Create a gitlab-values.yaml file to configure GitLab:
 yaml
-Copy
+
 
     global:
       hosts:
@@ -219,8 +219,8 @@ Copy
 3.2 Install GitLab Using Helm
 
 Add the GitLab Helm repository and deploy GitLab:
-bash
-Copy
+
+
     
     helm repo add gitlab https://charts.gitlab.io/
     helm repo update
@@ -233,13 +233,13 @@ Copy
 3.3 Access GitLab
 
     Get the GitLab root password:
-    bash
-    Copy
+    
+    
 
     kubectl get secret gitlab-gitlab-initial-root-password -n gitlab -ojsonpath='{.data.password}' | base64 --decode
 
     Access GitLab at:
-    Copy
+    
 
     http://gitlab.localhost:8080
 
@@ -251,8 +251,8 @@ Step 4: Deploy ArgoCD
 4.1 Install ArgoCD
 
 Install ArgoCD in the argocd namespace:
-bash
-Copy
+
+
 
     kubectl create namespace argocd
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -262,7 +262,7 @@ Copy
 
     Create an ArgoCD application to sync your GitLab repository:
     yaml
-    Copy
+    
 
     apiVersion: argoproj.io/v1alpha1
     kind: Application
@@ -286,13 +286,13 @@ Copy
 4.3 Access ArgoCD
 
     Set up port forwarding:
-    bash
-    Copy
+    
+    
 
     kubectl port-forward svc/argocd-server -n argocd 8888:443
 
     Access ArgoCD at:
-    Copy
+    
 
     https://localhost:8888
 
@@ -305,7 +305,7 @@ Step 5: Deploy a Website Using Nginx
 
 Create a Dockerfile for your website:
 dockerfile
-Copy
+
     
     FROM nginx:alpine
     COPY index.html /usr/share/nginx/html/index.html
@@ -314,14 +314,14 @@ Copy
 5.2 Build and Push the Docker Image
 
     Build the Docker image:
-    bash
-    Copy
+    
+    
 
     docker build -t hamid1337/website:v2 .
 
     Push the image to Docker Hub:
-    bash
-    Copy
+    
+    
 
     docker push hamid1337/website:v2
 
@@ -329,7 +329,7 @@ Copy
 
     Create a Kubernetes deployment and service:
     yaml
-    Copy
+    
 
     apiVersion: apps/v1
     kind: Deployment
@@ -365,27 +365,27 @@ Copy
           targetPort: 80
 
     Apply the configuration:
-    bash
-    Copy
+    
+    
 
     kubectl apply -f deployment.yaml -n dev
 
     Access the website at:
-    Copy
+    
 
     http://localhost:3030
 
 Step 6: Clean Up
 
     Delete the k3d cluster:
-    bash
-    Copy
+    
+    
 
     k3d cluster delete gitlab-cluster
 
     Remove unused Docker images:
-    bash
-    Copy
+    
+    
 
     docker system prune -af
 
@@ -425,8 +425,8 @@ Step 2: Rebuild the Docker Image
     Navigate to the directory containing your Dockerfile and application files.
 
     Rebuild the Docker image with a version tag (e.g., v2):
-    bash
-    Copy
+    
+    
 
     docker build -t hamid1337/website:v2 .
 
@@ -439,37 +439,37 @@ Step 2: Rebuild the Docker Image
 Step 3: Push the Updated Image to Docker Hub
 
     Log in to Docker Hub:
-    bash
-    Copy
+    
+    
 
     docker login
 
     Enter your Docker Hub username and password when prompted.
 
     Push the versioned image to Docker Hub:
-    bash
-    Copy
+    
+    
 
     docker push hamid1337/website:v2
 
     (Optional) Update the latest tag:
 
         Tag the versioned image as latest:
-        bash
-        Copy
+        
+        
 
         docker tag hamid1337/website:v2 hamid1337/website:latest
 
         Push the latest tag to Docker Hub:
-        bash
-        Copy
+        
+        
 
         docker push hamid1337/website:latest
 
     Verify the update on Docker Hub:
 
         Go to your Docker Hub repository:
-        Copy
+        
 
         https://hub.docker.com/r/hamid1337/website
 
@@ -481,7 +481,7 @@ Step 4: Update the Kubernetes Deployment
 
     Example YAML (deployment.yaml):
     yaml
-    Copy
+    
 
     apiVersion: apps/v1
     kind: Deployment
@@ -504,44 +504,44 @@ Step 4: Update the Kubernetes Deployment
             - containerPort: 80
 
     Apply the updated deployment to your Kubernetes cluster:
-    bash
-    Copy
+    
+    
 
     kubectl apply -f deployment.yaml -n dev
 
     Restart the deployment to ensure Kubernetes pulls the updated image:
-    bash
-    Copy
+    
+    
 
     kubectl rollout restart deployment/wil-playground -n dev
 
 Step 5: Verify the Deployment
 
     Check the status of the pods:
-    bash
-    Copy
+    
+    
 
     kubectl get pods -n dev
 
     Describe the pod to confirm it's using the updated image:
-    bash
-    Copy
+    
+    
 
     kubectl describe pod <pod-name> -n dev
 
     Look for the Image field under the Containers section.
 
     Check the logs for errors:
-    bash
-    Copy
+    
+    
 
     kubectl logs <pod-name> -n dev
 
     Access the application:
 
         If using a service, check the service configuration:
-        bash
-        Copy
+        
+        
 
         kubectl describe svc svc-wil-playground -n dev
 
@@ -550,20 +550,20 @@ Step 5: Verify the Deployment
 Step 6: Clean Up (Optional)
 
     Remove old images from your local machine:
-    bash
-    Copy
+    
+    
 
     docker rmi hamid1337/website:v1  # Replace v1 with the old tag
 
     Remove unused Docker images:
-    bash
-    Copy
+    
+    
 
     docker image prune -f
 
     Delete old Kubernetes resources if no longer needed:
-    bash
-    Copy
+    
+    
 
     kubectl delete deployment wil-playground -n dev
     kubectl delete svc svc-wil-playground -n dev
