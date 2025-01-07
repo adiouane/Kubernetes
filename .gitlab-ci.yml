@@ -1,0 +1,39 @@
+stages:
+  - build
+  - test
+  - push
+
+variables:
+  DOCKER_IMAGE: "aminediouane/adiouane"
+  DOCKER_TAG: "latest"
+  DOCKER_PASSWORD: ""
+
+
+# Build the Docker image
+build_image:
+  stage: build
+  script:
+    - echo "Building Docker image..."
+    - docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
+  artifacts:
+    paths:
+      - Dockerfile
+      - index.html  # Add other files if needed
+
+# Test the Docker image
+test_image:
+  stage: test
+  script:
+    - echo "Testing Docker image..."
+    - docker run $DOCKER_IMAGE:$DOCKER_TAG cat /usr/share/nginx/html/index.html | grep "Hello, Docker!"
+
+# Push the Docker image to Docker Hub
+push_image:
+  stage: push
+  script:
+    - echo "Logging in to Docker Hub..."
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - echo "Pushing Docker image to Docker Hub..."
+    - docker push $DOCKER_IMAGE:$DOCKER_TAG
+  only:
+    - main  # Only run this job on the main branch

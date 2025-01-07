@@ -1,0 +1,43 @@
+# Deployment
+apiVersion: apps/v1             # Kubernetes API version for Deployment resource
+kind: Deployment                # Type of Kubernetes resource
+metadata:
+  name: wil-playground          # Name and namespace of the Deployment
+  namespace: dev
+spec:                           # Specification of the Deployment
+  selector:
+    matchLabels:
+      app: wil-playground       # Label to match Pods managed by this Deployment
+  template:
+    metadata:
+      labels:
+        app: wil-playground     # Labels applied to Pods created from this template
+    spec:
+      containers:
+      - name: wil               # Name of the container
+        image: wil42/playground:v1  # Docker image to use for the container
+        ports:
+        - containerPort: 8888   # Port exposed by the container
+
+---
+
+# Service
+apiVersion: v1                  # Kubernetes API version for Service resource
+kind: Service                   # Tyfe of Kubernetes resource
+metadata:
+  name: svc-wil-playground      # Name of the Service
+  namespace: dev
+spec:
+  selector:
+    app: wil-playground         # Labels used to identify Pods that the Service will route traffic to
+  ports:
+    - protocol: TCP             # Protocol used for the port
+      port: 8080                # Port number on the Service that clients can connect to
+      targetPort: 8888          # Port number on the Pods to which the Service will forward traffic
+
+
+# The Service acts as an abstraction layer that provides a stable endpoint for accessing the Pods 
+#  that are part of the Deployment. Instead of directly accessing individual Pods (which can be dynamic 
+#  and change over time), clients interact with the Service, which internally routes requests to the
+#  appropriate Pods. The port configuration ensures that traffic is correctly routed from external 
+#  clients to the Pods where the application is running.

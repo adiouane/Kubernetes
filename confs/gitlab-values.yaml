@@ -1,0 +1,16 @@
+global:
+  hosts:
+    domain: localhost
+    https: false
+
+certmanager:
+  install: false
+
+nginx-ingress:
+  enabled: false
+
+gitlab-runner:
+  install: true
+
+prometheus:
+  install: false

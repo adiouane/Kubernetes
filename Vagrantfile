@@ -1,0 +1,29 @@
+#vagrant file
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  config.ssh.forward_x11 = true
+
+  
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 8192 #8gb
+    vb.cpus = 6
+  end
+
+  config.vm.define "mel-hadaB" do |node|
+    node.vm.hostname = "mel-hadaB"
+    node.vm.network "private_network", ip: "192.168.56.110"
+    node.vm.synced_folder ".", "/vagrant"
+
+    # # Forward ports to host
+    # node.vm.network "forwarded_port", guest: 80, host: 8080 # for HTTP
+    # node.vm.network "forwarded_port", guest: 443, host: 8443 # for HTTPS
+    # node.vm.network "forwarded_port", guest: 22, host: 2222 # for SSH
+    
+    # # Install required tools
+    # node.vm.provision "shell", path: "scripts/setup.sh"
+    
+    # # Deploy GitLab
+    # node.vm.provision "shell", path: "scripts/setupGitlab.sh"
+    
+  end
+end 
